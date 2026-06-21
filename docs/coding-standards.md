@@ -68,8 +68,9 @@ function HelperComponent({ label }: { label: string }) {
 
 - All CRUD operations go through `src/db/database.ts` helper functions
 - Never access `db.visits` directly from components
-- Use `put()` over `add()` for reliability with explicit keys
+- Use `put()` over `add()` for reliability with explicit keys (upsert behavior)
 - Always set `id` before saving (UUID v4)
+- Edit flow: load record into form state → modify → put() overwrites by ID
 
 ## Form Patterns
 
@@ -78,6 +79,15 @@ function HelperComponent({ label }: { label: string }) {
 - `NumberStepper` for numeric fields (no raw number inputs)
 - `ToggleCard` for boolean fields (accessible toggle switches)
 - `FormInput` with icon prefix for text fields
+- Auto-calculated fields (e.g., totalMembers = males + females)
+- Edit mode: pre-fill form from existing record, show "Editing" state
+
+## Map Patterns
+
+- Numbered pins using `L.divIcon` with flexbox-centered index number
+- Overlap handling: offset markers at same coordinates by ~15m diagonally
+- `zIndexOffset` ensures later markers are clickable on top
+- PDF export: render hidden 1800x1800 Leaflet map, screenshot at 3x scale
 
 ## Error Handling
 

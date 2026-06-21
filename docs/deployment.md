@@ -44,16 +44,18 @@ No environment variables required. The app is fully client-side with no API keys
 dist/
 ├── index.html
 ├── manifest.webmanifest
-├── registerSW.js
 ├── sw.js
 ├── workbox-*.js
 ├── CNAME
+├── favicon.svg
 ├── pwa-192x192.svg
 ├── pwa-512x512.svg
-├── vite.svg
-└── assets/
-    ├── index-*.css    (~38 KB gzipped: ~11 KB)
-    └── index-*.js     (~1.1 MB gzipped: ~335 KB)
+├── og-image.svg
+├── assets/
+│   ├── bmc-logo-no-background.png
+│   ├── index-*.css    (~38 KB, gzip: ~12 KB)
+│   └── index-*.js     (~1.1 MB, gzip: ~335 KB)
+└── (service worker precache files)
 ```
 
 ## PWA Behavior

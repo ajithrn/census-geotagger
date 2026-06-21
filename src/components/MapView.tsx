@@ -20,21 +20,45 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-function createColoredIcon(color: string): L.DivIcon {
+export function createNumberedIcon(color: string, index: number): L.DivIcon {
+  const fontSize = index > 99 ? '8px' : index > 9 ? '9px' : '11px';
   return L.divIcon({
     className: 'custom-marker',
     html: `<div style="
-      background-color: ${color};
-      width: 24px;
-      height: 24px;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    "></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -24],
+      position: relative;
+      width: 30px;
+      height: 38px;
+    ">
+      <div style="
+        background-color: ${color};
+        width: 30px;
+        height: 30px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        border: 2.5px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        position: absolute;
+        top: 0;
+        left: 0;
+      "></div>
+      <span style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 30px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${fontSize};
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      ">${index}</span>
+    </div>`,
+    iconSize: [30, 38],
+    iconAnchor: [15, 38],
+    popupAnchor: [0, -36],
   });
 }
 
@@ -133,15 +157,30 @@ export function MapView({ refreshTrigger }: MapViewProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBounds visits={filteredVisits} />
-            {filteredVisits.map(visit => (
+            {filteredVisits.map((visit, index) => {
+              // Offset markers at same location so they don't fully overlap
+              const sameLocCount = filteredVisits.slice(0, index).filter(v =>
+                Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00005 &&
+                Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00005
+              ).length;
+              const offsetLat = sameLocCount * 0.00015;
+              const offsetLng = sameLocCount * 0.00015;
+
+              return (
               <Marker
                 key={visit.id}
-                position={[visit.geoLocation.latitude, visit.geoLocation.longitude]}
-                icon={createColoredIcon(visit.markerColor)}
+                position={[visit.geoLocation.latitude + offsetLat, visit.geoLocation.longitude + offsetLng]}
+                icon={createNumberedIcon(visit.markerColor, index + 1)}
+                zIndexOffset={index * 10}
               >
                 <Popup>
                   <div className="text-xs min-w-48 leading-relaxed">
-                    <h3 className="font-bold text-sm mb-1 text-gray-800">{visit.headName}</h3>
+                    <h3 className="font-bold text-sm mb-1 text-gray-800">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold mr-1.5" style={{ backgroundColor: visit.markerColor }}>
+                        {index + 1}
+                      </span>
+                      {visit.headName}
+                    </h3>
                     <p className="text-gray-500">{visit.address}</p>
                     <hr className="my-1.5 border-gray-200" />
                     <p><span className="text-gray-500">ID:</span> {visit.householdId}</p>
@@ -154,7 +193,8 @@ export function MapView({ refreshTrigger }: MapViewProps) {
                   </div>
                 </Popup>
               </Marker>
-            ))}
+              );
+            })}
           </MapContainer>
         )}
       </div>
@@ -172,7 +212,7 @@ export function MapView({ refreshTrigger }: MapViewProps) {
   );
 }
 
-// Export ref for PDF generation
+// Export helper for PDF generation
 export function getMapElement(): HTMLElement | null {
   return document.getElementById('map-container');
 }

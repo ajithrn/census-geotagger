@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   MapPin, Navigation, User, Phone, Languages, Users,
@@ -65,14 +65,33 @@ const initialFormData: SurveyFormData = {
 
 interface SurveyFormProps {
   onSaved: () => void;
+  editingVisit?: HouseholdVisit | null;
+  onEditComplete?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-export function SurveyForm({ onSaved }: SurveyFormProps) {
+export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }: SurveyFormProps) {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<SurveyFormData>(initialFormData);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editHouseholdId, setEditHouseholdId] = useState<string | null>(null);
+  const [editCreatedAt, setEditCreatedAt] = useState<number | null>(null);
   const { loading: geoLoading, error: geoError, getCurrentPosition } = useGeolocation();
+
+  // Load editing visit data when prop changes
+  useEffect(() => {
+    if (editingVisit) {
+      const { id, householdId, createdAt, updatedAt: _u, markerColor: _m, ...rest } = editingVisit;
+      setFormData(rest);
+      setEditId(id);
+      setEditHouseholdId(householdId);
+      setEditCreatedAt(createdAt);
+      setStep(0);
+      setMessage(null);
+    }
+  }, [editingVisit?.id, editingVisit?.updatedAt]);
 
   const updateField = <K extends keyof SurveyFormData>(key: K, value: SurveyFormData[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -119,19 +138,41 @@ export function SurveyForm({ onSaved }: SurveyFormProps) {
     setSaving(true);
     try {
       const now = Date.now();
-      const visit: HouseholdVisit = {
-        id: uuidv4(),
-        householdId: `HH-${Date.now().toString(36).toUpperCase()}`,
-        createdAt: now,
-        updatedAt: now,
-        ...formData,
-        markerColor: MARKER_COLORS[formData.visitStatus],
-      };
-      await addVisit(visit);
-      setMessage({ type: 'success', text: `Saved successfully! ID: ${visit.householdId}` });
-      setFormData({ ...initialFormData, surveyorName: formData.surveyorName });
-      setTimeout(() => { setStep(0); setMessage(null); }, 2000);
-      onSaved();
+      if (editId) {
+        // Update existing record
+        const visit: HouseholdVisit = {
+          id: editId,
+          householdId: editHouseholdId!,
+          createdAt: editCreatedAt!,
+          updatedAt: now,
+          ...formData,
+          markerColor: MARKER_COLORS[formData.visitStatus],
+        };
+        await addVisit(visit); // put() handles upsert
+        setMessage({ type: 'success', text: `Updated! ID: ${visit.householdId}` });
+        setEditId(null);
+        setEditHouseholdId(null);
+        setEditCreatedAt(null);
+        setFormData({ ...initialFormData, surveyorName: formData.surveyorName });
+        onSaved();
+        onEditComplete?.();
+        setTimeout(() => { setStep(0); setMessage(null); onNavigate?.('records'); }, 1500);
+      } else {
+        // Create new record
+        const visit: HouseholdVisit = {
+          id: uuidv4(),
+          householdId: `HH-${Date.now().toString(36).toUpperCase()}`,
+          createdAt: now,
+          updatedAt: now,
+          ...formData,
+          markerColor: MARKER_COLORS[formData.visitStatus],
+        };
+        await addVisit(visit);
+        setMessage({ type: 'success', text: `Saved successfully! ID: ${visit.householdId}` });
+        setFormData({ ...initialFormData, surveyorName: formData.surveyorName });
+        onSaved();
+        setTimeout(() => { setStep(0); setMessage(null); onNavigate?.('records'); }, 1500);
+      }
     } catch (err) {
       setMessage({ type: 'error', text: `Error saving: ${err}` });
     } finally {
@@ -141,33 +182,43 @@ export function SurveyForm({ onSaved }: SurveyFormProps) {
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Progress stepper */}
-      <div className="px-4 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
-        <div className="flex items-center mb-2">
+      {/* Step header */}
+      <div className="px-4 pt-3 pb-3 flex-shrink-0 bg-gray-50 border-b border-gray-200">
+        {/* Title row */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-800">
+              {editId ? 'Edit Visit' : 'New Visit'}
+            </h2>
+            <p className="text-[11px] text-gray-500">
+              Step {step + 1} of {STEPS.length}: {STEPS[step].title}
+            </p>
+          </div>
+          <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-md">
+            {STEPS[step].desc}
+          </span>
+        </div>
+        {/* Progress dots */}
+        <div className="flex items-center">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center flex-1 last:flex-none">
               <button
                 onClick={() => i <= step ? setStep(i) : undefined}
                 aria-label={`Step ${i + 1}: ${s.title}`}
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors flex-shrink-0 ${
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors flex-shrink-0 ${
                   i < step ? 'bg-emerald-600 text-white' :
                   i === step ? 'bg-slate-800 text-white' :
-                  'bg-gray-200 text-gray-500'
+                  'bg-gray-300 text-gray-600'
                 }`}
               >
-                {i < step ? <Check size={12} /> : i + 1}
+                {i < step ? <Check size={11} /> : i + 1}
               </button>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-[2px] mx-1 rounded-full ${i < step ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-[2px] mx-1 rounded-full ${i < step ? 'bg-emerald-400' : 'bg-gray-300'}`} />
               )}
             </div>
           ))}
         </div>
-        <p className="text-center text-sm text-gray-600">
-          <span className="font-semibold text-gray-800">{STEPS[step].title}</span>
-          <span className="text-gray-400 mx-1">/</span>
-          <span className="text-gray-500">{STEPS[step].desc}</span>
-        </p>
       </div>
 
       {/* Message */}
@@ -215,7 +266,7 @@ export function SurveyForm({ onSaved }: SurveyFormProps) {
               disabled={saving}
               className="flex-1 py-3 px-4 rounded-lg font-semibold bg-emerald-700 text-white active:bg-emerald-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              {saving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : <><Save size={18} /> Save Visit</>}
+              {saving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : <><Save size={18} /> {editId ? 'Update Visit' : 'Save Visit'}</>}
             </button>
           )}
         </div>
@@ -437,18 +488,40 @@ function StepReview({ formData, updateField }: StepProps) {
         />
       </div>
 
-      {/* Summary */}
+      {/* Full Summary */}
       <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm font-semibold text-gray-700 mb-3">Review Summary</p>
-        <div className="space-y-2 text-sm text-gray-600">
-          <SummaryRow icon={<MapPin size={14} />} label="Address" value={formData.address || '—'} />
-          <SummaryRow icon={<User size={14} />} label="Head" value={formData.headName || '—'} />
-          <SummaryRow icon={<Users size={14} />} label="Members" value={String(formData.totalMembers)} />
-          <SummaryRow icon={<Home size={14} />} label="Type" value={HOUSEHOLD_TYPE_LABELS[formData.householdType]} />
-          <SummaryRow icon={<Briefcase size={14} />} label="Occupation" value={OCCUPATION_LABELS[formData.primaryOccupation]} />
-          <SummaryRow icon={<Droplets size={14} />} label="Water" value={WATER_SOURCE_LABELS[formData.waterSource]} />
-          <SummaryRow icon={<Zap size={14} />} label="Electricity" value={formData.hasElectricity ? 'Yes' : 'No'} />
-          <SummaryRow icon={<Bath size={14} />} label="Toilet" value={formData.hasToilet ? 'Yes' : 'No'} />
+        <p className="text-sm font-semibold text-gray-700 mb-3">Review All Data</p>
+        <div className="space-y-1.5 text-xs text-gray-600">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold pt-1">Location</p>
+          <SummaryRow icon={<MapPin size={12} />} label="Address" value={formData.address || '—'} />
+          <SummaryRow icon={<Landmark size={12} />} label="Landmark" value={formData.landmark || '—'} />
+          <SummaryRow icon={<Building2 size={12} />} label="Ward" value={formData.ward || '—'} />
+          <SummaryRow icon={<MapPinned size={12} />} label="GPS" value={formData.geoLocation.latitude !== 0 ? `${formData.geoLocation.latitude.toFixed(5)}, ${formData.geoLocation.longitude.toFixed(5)}` : '—'} />
+
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold pt-2">Household</p>
+          <SummaryRow icon={<User size={12} />} label="Head" value={formData.headName || '—'} />
+          <SummaryRow icon={<Phone size={12} />} label="Phone" value={formData.headPhone || '—'} />
+          <SummaryRow icon={<Languages size={12} />} label="Language" value={formData.primaryLanguage || '—'} />
+          <SummaryRow icon={<Users size={12} />} label="Members" value={`${formData.totalMembers} (M:${formData.totalMales} F:${formData.totalFemales})`} />
+          <SummaryRow icon={<Users size={12} />} label="Children/Seniors" value={`${formData.childrenUnder18} / ${formData.seniorCitizens}`} />
+
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold pt-2">Housing</p>
+          <SummaryRow icon={<Home size={12} />} label="Type" value={HOUSEHOLD_TYPE_LABELS[formData.householdType]} />
+          <SummaryRow icon={<Layers size={12} />} label="Structure" value={STRUCTURE_TYPE_LABELS[formData.structureType]} />
+          <SummaryRow icon={<Droplets size={12} />} label="Water" value={WATER_SOURCE_LABELS[formData.waterSource]} />
+          <SummaryRow icon={<Zap size={12} />} label="Electricity" value={formData.hasElectricity ? 'Yes' : 'No'} />
+          <SummaryRow icon={<Bath size={12} />} label="Toilet" value={formData.hasToilet ? 'Yes' : 'No'} />
+
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold pt-2">Economy</p>
+          <SummaryRow icon={<Briefcase size={12} />} label="Occupation" value={OCCUPATION_LABELS[formData.primaryOccupation]} />
+          <SummaryRow icon={<Briefcase size={12} />} label="Income" value={INCOME_LABELS[formData.incomeRange]} />
+          <SummaryRow icon={<FileText size={12} />} label="Ration Card" value={RATION_CARD_LABELS[formData.rationCardType]} />
+
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold pt-2">Health & Education</p>
+          <SummaryRow icon={<GraduationCap size={12} />} label="School Children" value={String(formData.schoolGoingChildren)} />
+          <SummaryRow icon={<GraduationCap size={12} />} label="School Dist." value={`${formData.nearestSchoolKm} km`} />
+          <SummaryRow icon={<Accessibility size={12} />} label="Disabled" value={formData.hasDisabledMembers ? 'Yes' : 'No'} />
+          <SummaryRow icon={<HeartPulse size={12} />} label="Chronic Illness" value={formData.hasChronicIllness ? 'Yes' : 'No'} />
         </div>
       </div>
     </div>

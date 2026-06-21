@@ -14,6 +14,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('form');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [installDismissed, setInstallDismissed] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<import('./types/survey').HouseholdVisit | null>(null);
 
   const {
     needsUpdate,
@@ -32,6 +33,15 @@ function App() {
 
   const handleRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  const handleEdit = useCallback((visit: import('./types/survey').HouseholdVisit) => {
+    setEditingVisit(visit);
+    setActiveTab('form');
+  }, []);
+
+  const handleEditComplete = useCallback(() => {
+    setEditingVisit(null);
   }, []);
 
   // Show install prompt after a short delay (don't interrupt immediately)
@@ -53,7 +63,7 @@ function App() {
         )}
 
         {/* Header */}
-        <header className={`bg-slate-900 text-white px-4 py-3 flex-shrink-0 ${isOffline || needsUpdate ? 'mt-9' : ''}`}>
+        <header className="bg-slate-900 text-white px-4 py-3 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <img src="/favicon.svg" alt="Census GeoTagger" className="w-8 h-8 rounded-lg ring-1 ring-slate-600" />
             <div>
@@ -65,10 +75,10 @@ function App() {
 
         {/* Content */}
         <main className="flex-1 overflow-hidden">
-          {activeTab === 'form' && <SurveyForm onSaved={handleRefresh} />}
+          {activeTab === 'form' && <SurveyForm onSaved={handleRefresh} editingVisit={editingVisit} onEditComplete={handleEditComplete} onNavigate={(tab) => setActiveTab(tab as Tab)} />}
           {activeTab === 'map' && <MapView refreshTrigger={refreshTrigger} />}
           {activeTab === 'records' && (
-            <RecordsList refreshTrigger={refreshTrigger} onRefresh={handleRefresh} />
+            <RecordsList refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onEdit={handleEdit} />
           )}
           {activeTab === 'export' && <ExportPanel refreshTrigger={refreshTrigger} />}
           {activeTab === 'about' && <AboutPage />}

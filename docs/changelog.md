@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-06-21
+
+### Added
+
+- Numbered pin markers on map (index visible inside pin)
+- High-resolution PDF map capture (1800x1800 @ 3x = 5400x5400px square)
+- Hidden off-screen map renderer for PDF (no tab-switching needed)
+- Statistics dashboard in PDF with key metrics, demographics, infrastructure, occupation breakdown
+- Map Index table in PDF with colored pin badges and row separators
+- Edit existing survey entry (from Records → Edit button)
+- Auto-navigate to Records tab after save/update
+- About tab with Privacy Policy, Disclaimer, and Terms of Use
+- Desktop mobile-frame layout with footer links
+- PWA install prompt with visible contrast (dark icon, heavy shadow, border)
+- PWA update banner floats on top with loading spinner
+- Offline indicator as floating pill (doesn't shift UI)
+
+### Changed
+
+- Total Members auto-calculated from Males + Females (read-only display)
+- Step header redesigned: shows "New Visit" / "Edit Visit" title + step info
+- Progress dots smaller and compact with flex connector lines
+- Map markers offset slightly when at same GPS coordinates (prevents overlap)
+- Markers get increasing z-index so later pins are always clickable
+- PDF index table row spacing increased (6mm) with separator lines
+- Install prompt delay reduced to 3 seconds
+- Credits/legal moved from Export panel to dedicated About tab
+
+### Fixed
+
+- Edit now properly upserts (overwrites existing record, not creates new)
+- Step connector lines rendering with gaps (now flex-based)
+- Map pin number alignment (flexbox centered)
+- PDF index badge number vertical alignment
+
 ## [1.1.0] - 2025-06-21
 
 ### Added

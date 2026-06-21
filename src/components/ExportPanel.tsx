@@ -6,7 +6,6 @@ import {
 import { getAllVisits } from '../db/database';
 import { exportToCsv, exportToGeoJson } from '../utils/exportCsv';
 import { exportToPdf } from '../utils/exportPdf';
-import { getMapElement } from './MapView';
 import type { HouseholdVisit } from '../types/survey';
 import { VISIT_STATUS_LABELS, MARKER_COLORS } from '../types/survey';
 
@@ -50,8 +49,7 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
   const handleExportPdf = async () => {
     setExporting('pdf');
     try {
-      const mapEl = getMapElement();
-      await exportToPdf(visits, mapEl, `census-report-${Date.now()}`);
+      await exportToPdf(visits, null, `census-report-${Date.now()}`);
     } finally {
       setTimeout(() => setExporting(null), 2000);
     }
