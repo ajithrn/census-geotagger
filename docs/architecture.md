@@ -9,10 +9,10 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 │               Census GeoTagger              │
 ├─────────────────────────────────────────────┤
 │  UI Layer (React + Tailwind CSS)            │
-│  ┌──────────┬─────────┬─────────┬────────┐ │
-│  │  Survey  │   Map   │ Records │ Export │ │
-│  │  Form    │  View   │  List   │ Panel  │ │
-│  └──────────┴─────────┴─────────┴────────┘ │
+│  ┌──────────┬─────────┬─────────┬────────┬───────┐ │
+│  │  Survey  │   Map   │ Records │ Export │ About │ │
+│  │  Form    │  View   │  List   │ Panel  │ Page  │ │
+│  └──────────┴─────────┴─────────┴────────┴───────┘ │
 ├─────────────────────────────────────────────┤
 │  Data Layer (Dexie.js → IndexedDB)          │
 ├─────────────────────────────────────────────┤
@@ -57,11 +57,14 @@ src/
 │   ├── SurveyForm.tsx    # Multi-step survey wizard
 │   ├── MapView.tsx       # Leaflet map with markers
 │   ├── RecordsList.tsx   # Searchable records list
-│   └── ExportPanel.tsx   # Export options + stats
+│   ├── ExportPanel.tsx   # Export options + stats
+│   ├── AboutPage.tsx     # Privacy, disclaimer, credits
+│   └── PWAPrompts.tsx    # Update banner, install prompt, offline indicator
 ├── db/
 │   └── database.ts       # Dexie.js schema and CRUD helpers
 ├── hooks/
-│   └── useGeolocation.ts # Browser Geolocation API wrapper
+│   ├── useGeolocation.ts # Browser Geolocation API wrapper
+│   └── usePWA.ts         # Service Worker, install prompt, offline detection
 ├── types/
 │   └── survey.ts         # TypeScript types, labels, constants
 ├── utils/

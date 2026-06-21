@@ -143,22 +143,22 @@ export function SurveyForm({ onSaved }: SurveyFormProps) {
     <div className="h-full flex flex-col bg-white">
       {/* Progress stepper */}
       <div className="px-4 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center mb-2">
           {STEPS.map((s, i) => (
-            <div key={s.id} className="flex items-center">
+            <div key={s.id} className="flex items-center flex-1 last:flex-none">
               <button
                 onClick={() => i <= step ? setStep(i) : undefined}
                 aria-label={`Step ${i + 1}: ${s.title}`}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors flex-shrink-0 ${
                   i < step ? 'bg-emerald-600 text-white' :
                   i === step ? 'bg-slate-800 text-white' :
                   'bg-gray-200 text-gray-500'
                 }`}
               >
-                {i < step ? <Check size={14} /> : i + 1}
+                {i < step ? <Check size={12} /> : i + 1}
               </button>
               {i < STEPS.length - 1 && (
-                <div className={`w-4 sm:w-6 h-0.5 mx-0.5 rounded ${i < step ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-[2px] mx-1 rounded-full ${i < step ? 'bg-emerald-400' : 'bg-gray-200'}`} />
               )}
             </div>
           ))}
@@ -284,6 +284,8 @@ function StepLocation({ formData, updateField, geoLoading, geoError, onGetLocati
 }
 
 function StepHousehold({ formData, updateField }: StepProps) {
+  const totalMembers = formData.totalMales + formData.totalFemales;
+
   return (
     <div className="space-y-4">
       <FormInput icon={<User size={16} />} label="Head of Household (Full Name)" value={formData.headName} onChange={v => updateField('headName', v)} required placeholder="Full name" />
@@ -293,11 +295,15 @@ function StepHousehold({ formData, updateField }: StepProps) {
       <div className="pt-2">
         <SectionLabel icon={<Users size={15} />} text="Family Members" />
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <NumberStepper label="Total Members" value={formData.totalMembers} onChange={v => updateField('totalMembers', v)} min={1} />
-          <NumberStepper label="Males" value={formData.totalMales} onChange={v => updateField('totalMales', v)} min={0} />
-          <NumberStepper label="Females" value={formData.totalFemales} onChange={v => updateField('totalFemales', v)} min={0} />
+          <NumberStepper label="Males" value={formData.totalMales} onChange={v => { updateField('totalMales', v); updateField('totalMembers', v + formData.totalFemales); }} min={0} />
+          <NumberStepper label="Females" value={formData.totalFemales} onChange={v => { updateField('totalFemales', v); updateField('totalMembers', formData.totalMales + v); }} min={0} />
           <NumberStepper label="Children (<18)" value={formData.childrenUnder18} onChange={v => updateField('childrenUnder18', v)} min={0} />
           <NumberStepper label="Seniors (60+)" value={formData.seniorCitizens} onChange={v => updateField('seniorCitizens', v)} min={0} />
+        </div>
+        {/* Auto-calculated total */}
+        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+          <span className="text-sm text-gray-600 font-medium">Total Members</span>
+          <span className="text-lg font-bold text-gray-800 tabular-nums">{totalMembers || formData.totalMembers}</span>
         </div>
       </div>
     </div>

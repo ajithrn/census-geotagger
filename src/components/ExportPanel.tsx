@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   FileSpreadsheet, Globe, FileText, Trash2, Loader2,
-  Users, Home, CheckCircle2, Clock, Info, AlertTriangle, Mail,
+  Users, Home, CheckCircle2, Clock, AlertTriangle,
 } from 'lucide-react';
 import { getAllVisits } from '../db/database';
 import { exportToCsv, exportToGeoJson } from '../utils/exportCsv';
 import { exportToPdf } from '../utils/exportPdf';
 import { getMapElement } from './MapView';
-import { AboutModal } from './AboutModal';
 import type { HouseholdVisit } from '../types/survey';
 import { VISIT_STATUS_LABELS, MARKER_COLORS } from '../types/survey';
 
@@ -18,7 +17,6 @@ interface ExportPanelProps {
 export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
   const [visits, setVisits] = useState<HouseholdVisit[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
-  const [showAbout, setShowAbout] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
@@ -209,39 +207,6 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
         </div>
       )}
 
-      {/* Credits */}
-      <div className="mt-6 pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>Built by <span className="text-gray-500 font-medium">Ajith R N</span></span>
-          <span className="font-mono">v1.0.0</span>
-        </div>
-        <div className="flex items-center gap-4 mt-2">
-          <a
-            href="https://buymeacoffee.com/ajithrn"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <img src="/assets/bmc-logo-no-background.png" alt="" className="h-4 w-4 object-contain" />
-            Buy Me a Coffee
-          </a>
-          <a
-            href="mailto:dev@ajithrn.com"
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <Mail size={13} /> dev@ajithrn.com
-          </a>
-        </div>
-        <button
-          onClick={() => setShowAbout(true)}
-          className="mt-2 text-[11px] text-gray-400 hover:text-gray-500 transition-colors flex items-center gap-1"
-        >
-          <Info size={11} /> About this app
-        </button>
-      </div>
-
-      {/* About Modal */}
-      <AboutModal open={showAbout} onClose={() => setShowAbout(false)} />
     </div>
   );
 }

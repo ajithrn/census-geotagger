@@ -25,8 +25,10 @@ export function usePWA(): PWAState {
   useEffect(() => {
     // --- Service Worker Registration ---
     if ('serviceWorker' in navigator) {
+      // Register immediately on load
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(registration => {
         registrationRef.current = registration;
+        console.log('SW registered successfully');
 
         // If there's already a waiting worker on load, prompt immediately
         if (registration.waiting) {
@@ -49,7 +51,8 @@ export function usePWA(): PWAState {
         // Check for updates periodically (every 60 min)
         setInterval(() => registration.update(), 60 * 60 * 1000);
       }).catch(err => {
-        console.error('SW registration failed:', err);
+        // SW not available in dev mode — this is expected
+        console.log('SW registration unavailable:', err.message);
       });
 
       // Reload page when new SW takes over
