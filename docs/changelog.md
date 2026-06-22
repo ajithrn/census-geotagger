@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2025-06-21
+
+### Changed
+
+- Map export completely rewritten: pure canvas-based renderer (no Leaflet, no html2canvas)
+- Fetches OSM tiles via fetch(), stitches grid on canvas, draws pins programmatically
+- Works reliably on mobile (no CORS issues, no memory problems)
+- Standalone map image export at 2400x2400px, PDF map at 1200x1200px
+- Pin icon redesigned: circle head with line leg (consistent in map view and export)
+- Pins drawn at 85% opacity for overlap visibility
+- Removed html2canvas dependency
+- Removed TrackZoom component and localStorage zoom tracking
+- Removed unused getMapElement export from MapView
+- Removed AboutModal.tsx (replaced by AboutPage)
+- Removed unused default Vite assets
+- Cleaned up src/assets directory
+
+### Fixed
+
+- Map not rendering in PDF/image export on mobile devices
+- Pin rendering artifacts from complex path shapes
+
 ## [1.4.1] - 2025-06-21
 
 ### Added

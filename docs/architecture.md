@@ -53,12 +53,12 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 
 ### PDF Map Rendering
 
-- Single `renderMapImage()` function used by both PDF and standalone image export
-- Creates a hidden 1800x1800px off-screen Leaflet map with compact 20px numbered pins
-- Screenshots at 3x scale → 5400x5400px square image (always hi-res, regardless of device)
-- Uses fitBounds with 200px padding and maxZoom 18 for tight framing
-- Only offsets markers at truly identical GPS coordinates (<1m apart) by ~5m
-- Does not depend on current tab, visible map, or saved zoom level
+- Single `renderMapToCanvas()` function in `mapRenderer.ts` used by both PDF and standalone image export
+- Fetches OSM tiles via `fetch()` as blobs (bypasses CORS), stitches onto a `<canvas>`
+- Draws numbered pin markers programmatically using canvas arc/fill
+- Auto-calculates zoom level to fit all pins with padding
+- No Leaflet, no html2canvas, no hidden DOM — works reliably on mobile
+- Canvas size: 1200px for PDF, 2400px for standalone image export
 
 ### Edit Flow
 
@@ -90,7 +90,8 @@ src/
 │   └── survey.ts         # TypeScript types, labels, color constants
 ├── utils/
 │   ├── exportCsv.ts      # CSV and GeoJSON generation
-│   └── exportPdf.ts      # PDF: hidden map render, stats dashboard, details
+│   ├── exportPdf.ts      # PDF report (uses mapRenderer for map)
+│   └── mapRenderer.ts    # Canvas-based OSM tile + pin renderer
 ├── App.tsx               # Root: 5-tab nav, desktop frame, edit routing
 ├── main.tsx              # Entry point
 └── index.css             # Tailwind + custom styles
@@ -142,7 +143,7 @@ Write operations use `db.visits.put()` for reliable upsert behavior.
 | Map | Leaflet + react-leaflet | Mature, lightweight, OSM integration |
 | Tiles | OpenStreetMap | Free, no API key, community-maintained |
 | Storage | Dexie.js 4 (IndexedDB) | Typed, promise-based, large storage quota |
-| PDF | jsPDF + html2canvas + Leaflet | Client-side hidden map render + report generation |
+| PDF | jsPDF + canvas tile renderer | Client-side map render + report generation |
 | CSV | PapaParse | Robust CSV generation with proper escaping |
 | PWA | vite-plugin-pwa (prompt mode) | Manual SW registration, user-controlled updates |
 

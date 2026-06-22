@@ -26,38 +26,40 @@ export function createNumberedIcon(color: string, index: number): L.DivIcon {
     className: 'custom-marker',
     html: `<div style="
       position: relative;
-      width: 30px;
+      width: 26px;
       height: 38px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     ">
       <div style="
         background-color: ${color};
-        width: 30px;
-        height: 30px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        border: 2.5px solid white;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        position: absolute;
-        top: 0;
-        left: 0;
-      "></div>
-      <span style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 30px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.35);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: ${fontSize};
-        font-weight: 800;
-        color: white;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-      ">${index}</span>
+        opacity: 0.9;
+      ">
+        <span style="
+          font-size: ${fontSize};
+          font-weight: 800;
+          color: white;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        ">${index}</span>
+      </div>
+      <div style="
+        width: 2.5px;
+        height: 12px;
+        background-color: ${color};
+        border-radius: 0 0 2px 2px;
+      "></div>
     </div>`,
-    iconSize: [30, 38],
-    iconAnchor: [15, 38],
+    iconSize: [26, 38],
+    iconAnchor: [13, 38],
     popupAnchor: [0, -36],
   });
 }
@@ -74,19 +76,6 @@ function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
     }
   }, [visits, map]);
 
-  return null;
-}
-
-function TrackZoom() {
-  const map = useMap();
-  useEffect(() => {
-    const handler = () => {
-      localStorage.setItem('cgt-map-zoom', String(map.getZoom()));
-    };
-    map.on('zoomend', handler);
-    handler(); // save initial zoom
-    return () => { map.off('zoomend', handler); };
-  }, [map]);
   return null;
 }
 
@@ -200,7 +189,6 @@ export function MapView({ refreshTrigger }: MapViewProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBounds visits={filteredVisits} />
-            <TrackZoom />
             {filteredVisits.map((visit, index) => {
               // Only offset markers at truly identical coordinates (within ~1m)
               const sameLocCount = filteredVisits.slice(0, index).filter(v =>
@@ -256,7 +244,3 @@ export function MapView({ refreshTrigger }: MapViewProps) {
   );
 }
 
-// Export helper for PDF generation
-export function getMapElement(): HTMLElement | null {
-  return document.getElementById('map-container');
-}
