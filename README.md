@@ -31,6 +31,7 @@ Deployed via GitHub Pages. See [docs/deployment.md](docs/deployment.md) for deta
 
 ## Documentation
 
+- [Usage Guide](docs/usage-guide.md)
 - [Architecture](docs/architecture.md)
 - [Coding Standards](docs/coding-standards.md)
 - [Deployment](docs/deployment.md)

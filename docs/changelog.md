@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2025-06-21
+
+### Added
+
+- Profile page (renamed from Settings) for surveyor defaults
+- Settings page with data backup, import (merge/replace), and clear data
+- JSON backup export with version, timestamp, and record count
+- Import & Merge: adds records, skips duplicates by ID
+- Import & Replace: clears all data first, then restores from backup
+- Usage guide documentation (docs/usage-guide.md)
+
+### Changed
+
+- More menu now shows 3 options: Profile, Settings, About
+- Sub-page title bar minimized (thin inline bar with back + label)
+- Page titles moved inside content area (larger, more prominent)
+- Danger zone / delete moved from Export panel to Settings page
+- Export panel is now clean (only export formats)
+
 ## [1.3.1] - 2025-06-21
 
 ### Changed

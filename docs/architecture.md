@@ -10,9 +10,10 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 ├──────────────────────────────────────────────────────┤
 │  UI Layer (React + Tailwind CSS)                     │
 │  ┌────────┬───────┬─────────┬────────┬───────┐      │
-│  │ Survey │  Map  │ Records │ Export │ About │      │
-│  │ (edit) │(pins) │ (full)  │(PDF/CSV│(legal)│      │
+│  │ Survey │  Map  │ Records │ Export │ More  │      │
+│  │ (edit) │(pins) │ (full)  │(PDF/CSV│(popup)│      │
 │  └────────┴───────┴─────────┴────────┴───────┘      │
+│  Sub-pages: Profile | Settings | About               │
 ├──────────────────────────────────────────────────────┤
 │  Data Layer (Dexie.js → IndexedDB)                   │
 ├──────────────────────────────────────────────────────┤
@@ -74,8 +75,11 @@ src/
 │   ├── SurveyForm.tsx    # Multi-step wizard (create + edit)
 │   ├── MapView.tsx       # Leaflet map with numbered pins
 │   ├── RecordsList.tsx   # Searchable list, full expand, edit/delete
-│   ├── ExportPanel.tsx   # CSV, GeoJSON, PDF export + stats
+│   ├── ExportPanel.tsx   # CSV, GeoJSON, PDF, map image export
+│   ├── ProfilePage.tsx   # Surveyor defaults (name, ward, org)
+│   ├── SettingsPage.tsx  # Backup, import, data management
 │   ├── AboutPage.tsx     # Privacy, disclaimer, terms, credits
+│   ├── MorePage.tsx      # Bottom sheet menu (Profile/Settings/About)
 │   └── PWAPrompts.tsx    # Floating update/install/offline banners
 ├── db/
 │   └── database.ts       # Dexie.js schema and CRUD (put-based upsert)

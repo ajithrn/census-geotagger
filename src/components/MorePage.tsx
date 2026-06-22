@@ -1,9 +1,9 @@
-import { Settings, Info, ChevronRight, X } from 'lucide-react';
+import { Settings, Info, ChevronRight, X, UserCircle } from 'lucide-react';
 
 interface MoreMenuProps {
   open: boolean;
   onClose: () => void;
-  onNavigate: (page: 'settings' | 'about') => void;
+  onNavigate: (page: 'profile' | 'settings' | 'about') => void;
 }
 
 export function MoreMenu({ open, onClose, onNavigate }: MoreMenuProps) {
@@ -11,9 +11,9 @@ export function MoreMenu({ open, onClose, onNavigate }: MoreMenuProps) {
 
   return (
     <>
-      {/* Backdrop — covers content only, not nav */}
+      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/25 z-40" onClick={onClose} />
-      {/* Bottom sheet — above the nav bar */}
+      {/* Bottom sheet */}
       <div className="absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.1)] border-t border-gray-200 px-4 pt-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-gray-800">More</h3>
@@ -23,9 +23,15 @@ export function MoreMenu({ open, onClose, onNavigate }: MoreMenuProps) {
         </div>
         <div className="space-y-2">
           <MenuButton
+            icon={<UserCircle size={18} />}
+            title="Profile"
+            desc="Surveyor name, ward, organization"
+            onClick={() => { onClose(); onNavigate('profile'); }}
+          />
+          <MenuButton
             icon={<Settings size={18} />}
             title="Settings"
-            desc="Surveyor name, default ward, preferences"
+            desc="Backup, import, data management"
             onClick={() => { onClose(); onNavigate('settings'); }}
           />
           <MenuButton

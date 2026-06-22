@@ -6,11 +6,12 @@ import { RecordsList } from './components/RecordsList';
 import { ExportPanel } from './components/ExportPanel';
 import { AboutPage } from './components/AboutPage';
 import { SettingsPage } from './components/SettingsPage';
+import { ProfilePage } from './components/ProfilePage';
 import { MoreMenu } from './components/MorePage';
 import { UpdateBanner, InstallPrompt, OfflineIndicator } from './components/PWAPrompts';
 import { usePWA } from './hooks/usePWA';
 
-type Tab = 'form' | 'map' | 'records' | 'export' | 'settings' | 'about';
+type Tab = 'form' | 'map' | 'records' | 'export' | 'profile' | 'settings' | 'about';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('form');
@@ -36,7 +37,7 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isMainTab = !['settings', 'about'].includes(activeTab);
+  const isMainTab = !['profile', 'settings', 'about'].includes(activeTab);
 
   return (
     <div className="h-dvh w-full flex flex-col items-center justify-center bg-gray-100 fixed inset-0">
@@ -60,19 +61,18 @@ function App() {
           </div>
         </header>
 
-        {/* Sub-page header for Settings/About */}
+        {/* Sub-page title bar — minimal, inline with content */}
         {!isMainTab && (
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center flex-shrink-0">
+          <div className="px-4 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
             <button
               onClick={() => setActiveTab('form')}
-              className="text-sm font-medium text-slate-600 active:text-slate-900"
+              className="text-xs font-medium text-slate-500 active:text-slate-800"
             >
               ← Back
             </button>
-            <span className="flex-1 text-center text-sm font-bold text-gray-800">
-              {activeTab === 'settings' ? 'Settings' : 'About'}
+            <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+              {activeTab === 'profile' ? 'Profile' : activeTab === 'settings' ? 'Settings' : 'About'}
             </span>
-            <span className="w-10" />
           </div>
         )}
 
@@ -84,6 +84,7 @@ function App() {
             <RecordsList refreshTrigger={refreshTrigger} onRefresh={handleRefresh} onEdit={handleEdit} />
           )}
           {activeTab === 'export' && <ExportPanel refreshTrigger={refreshTrigger} />}
+          {activeTab === 'profile' && <ProfilePage />}
           {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'about' && <AboutPage />}
 

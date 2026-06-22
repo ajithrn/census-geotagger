@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { addVisit } from '../db/database';
-import { getSettings } from './SettingsPage';
+import { getSettings } from './ProfilePage';
 import type { HouseholdVisit, SurveyFormData } from '../types/survey';
 import {
   MARKER_COLORS,

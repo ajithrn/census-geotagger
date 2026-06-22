@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  FileSpreadsheet, Globe, FileText, Trash2, Loader2,
-  Users, Home, CheckCircle2, Clock, AlertTriangle, MapPin,
+  FileSpreadsheet, Globe, FileText, Loader2,
+  Users, Home, CheckCircle2, Clock, MapPin,
 } from 'lucide-react';
 import { getAllVisits } from '../db/database';
 import { exportToCsv, exportToGeoJson } from '../utils/exportCsv';
@@ -16,8 +16,6 @@ interface ExportPanelProps {
 export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
   const [visits, setVisits] = useState<HouseholdVisit[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     loadVisits();
@@ -147,81 +145,6 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
           desc="High-res PNG of map with numbered pins"
         />
       </div>
-
-      {/* Data Management */}
-      <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-        <div className="flex items-center gap-2 mb-1">
-          <Trash2 size={14} className="text-red-600" />
-          <h3 className="text-sm font-semibold text-red-800">Danger Zone</h3>
-        </div>
-        <p className="text-xs text-red-600 mb-3">
-          This will permanently delete all survey records from this device. This action cannot be undone.
-          Make sure you have exported your data before proceeding.
-        </p>
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          className="px-3 py-2 text-xs font-semibold text-white bg-red-600 border border-red-700 rounded-lg active:bg-red-700 transition-colors flex items-center gap-1.5"
-        >
-          <Trash2 size={14} /> Delete All Data
-        </button>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-white rounded-xl w-[90%] max-w-sm p-5 shadow-xl">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <AlertTriangle size={20} className="text-red-600" />
-              </div>
-              <h3 className="text-base font-bold text-gray-900">Delete All Data?</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              You are about to permanently delete <span className="font-bold text-red-700">{visits.length} survey records</span> from this device.
-            </p>
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
-              <p className="text-xs text-red-700 font-medium">
-                This action is irreversible. All household visits, GPS data, and survey responses will be lost forever.
-              </p>
-            </div>
-            <p className="text-xs text-gray-500 mb-4">
-              Type <span className="font-mono font-bold text-gray-700">DELETE</span> to confirm:
-            </p>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={e => setDeleteConfirmText(e.target.value)}
-              placeholder="Type DELETE here"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-red-400 focus:border-red-400"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
-                className="flex-1 py-2.5 px-4 rounded-lg font-medium bg-gray-100 text-gray-700 active:bg-gray-200 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (deleteConfirmText === 'DELETE') {
-                    const { clearAllVisits } = await import('../db/database');
-                    await clearAllVisits();
-                    setShowDeleteConfirm(false);
-                    setDeleteConfirmText('');
-                    loadVisits();
-                  }
-                }}
-                disabled={deleteConfirmText !== 'DELETE'}
-                className="flex-1 py-2.5 px-4 rounded-lg font-semibold bg-red-600 text-white active:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
-              >
-                Delete Forever
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
