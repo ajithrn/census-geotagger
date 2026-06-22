@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2025-06-21
+
+### Changed
+
+- More menu now opens as bottom sheet popup (not a full tab page)
+- Settings and About pages render in main content area with sub-header (Back + title)
+- App header always stays visible regardless of which page is shown
+- PWA notifications (update, install, offline) use fixed positioning with z-[9999] outside app frame
+- Outer container uses `fixed inset-0` to prevent pull-to-refresh from breaking navbar position
+- Settings page header removed (provided by App shell)
+- About page spacing improved (larger logo, more section padding)
+
+### Fixed
+
+- Pull-to-refresh causing bottom navbar to scroll off-screen
+- PWA update banner not floating (was pushing content down)
+- Settings/About pages overlapping app header
+
 ## [1.3.0] - 2025-06-21
 
 ### Added

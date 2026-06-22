@@ -2,18 +2,18 @@ import { Mail, Code2, ExternalLink, Shield, Scale, Info } from 'lucide-react';
 
 export function AboutPage() {
   return (
-    <div className="h-full overflow-y-auto p-4 pb-20 bg-white">
+    <div className="h-full overflow-y-auto p-5 pb-20 bg-white">
       {/* App Info */}
-      <div className="flex items-center gap-3 mb-5">
-        <img src="/favicon.svg" alt="" className="w-12 h-12 rounded-xl ring-1 ring-gray-200" />
+      <div className="flex items-center gap-3 mb-4">
+        <img src="/favicon.svg" alt="" className="w-14 h-14 rounded-xl ring-1 ring-gray-200" />
         <div>
           <h2 className="text-lg font-bold text-gray-800">Census GeoTagger</h2>
           <p className="text-xs text-gray-500">Field Survey & Geolocation Logger</p>
-          <p className="text-[10px] text-gray-400 font-mono mt-0.5">Version 1.3.0</p>
+          <p className="text-[10px] text-gray-400 font-mono mt-0.5">Version 1.3.1</p>
         </div>
       </div>
 
-      <p className="text-sm text-gray-600 leading-relaxed mb-6">
+      <p className="text-sm text-gray-600 leading-relaxed mb-8">
         An offline-first progressive web app for conducting household census surveys
         with GPS geolocation tagging. Designed for field workers who need a reliable
         tool that works without internet connectivity.
@@ -146,10 +146,10 @@ export function AboutPage() {
 
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-5 pb-5 border-b border-gray-100 last:border-0">
-      <div className="flex items-center gap-2 mb-2.5">
+    <div className="mb-6 pb-6 border-b border-gray-100 last:border-0">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-gray-500">{icon}</span>
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+        <h3 className="text-sm font-bold text-gray-700">{title}</h3>
       </div>
       {children}
     </div>

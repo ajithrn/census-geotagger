@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { addVisit } from '../db/database';
+import { getSettings } from './SettingsPage';
 import type { HouseholdVisit, SurveyFormData } from '../types/survey';
 import {
   MARKER_COLORS,
@@ -71,8 +72,14 @@ interface SurveyFormProps {
 }
 
 export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }: SurveyFormProps) {
+  const settings = getSettings();
   const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState<SurveyFormData>(initialFormData);
+  const [formData, setFormData] = useState<SurveyFormData>({
+    ...initialFormData,
+    surveyorName: settings.surveyorName,
+    ward: settings.defaultWard,
+    primaryLanguage: settings.defaultLanguage,
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -153,7 +160,7 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
         setEditId(null);
         setEditHouseholdId(null);
         setEditCreatedAt(null);
-        setFormData({ ...initialFormData, surveyorName: formData.surveyorName });
+        setFormData({ ...initialFormData, surveyorName: formData.surveyorName, ward: settings.defaultWard, primaryLanguage: settings.defaultLanguage });
         onSaved();
         onEditComplete?.();
         setTimeout(() => { setStep(0); setMessage(null); onNavigate?.('records'); }, 1500);
@@ -169,7 +176,7 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
         };
         await addVisit(visit);
         setMessage({ type: 'success', text: `Saved successfully! ID: ${visit.householdId}` });
-        setFormData({ ...initialFormData, surveyorName: formData.surveyorName });
+        setFormData({ ...initialFormData, surveyorName: formData.surveyorName, ward: settings.defaultWard, primaryLanguage: settings.defaultLanguage });
         onSaved();
         setTimeout(() => { setStep(0); setMessage(null); onNavigate?.('records'); }, 1500);
       }

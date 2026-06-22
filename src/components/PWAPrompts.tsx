@@ -14,12 +14,11 @@ export function UpdateBanner({ onUpdate }: UpdateBannerProps) {
   const handleUpdate = () => {
     setUpdating(true);
     onUpdate();
-    // If reload doesn't happen in 5s, stop spinner
     setTimeout(() => setUpdating(false), 5000);
   };
 
   return (
-    <div className="fixed top-3 left-3 right-3 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center justify-between gap-3 border border-slate-700">
+    <div className="fixed top-4 left-4 right-4 z-[9999] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center justify-between gap-3 border border-slate-700">
       <div className="flex items-center gap-2.5 min-w-0">
         {updating ? (
           <Loader2 size={16} className="flex-shrink-0 text-emerald-400 animate-spin" />
@@ -60,7 +59,7 @@ interface InstallPromptProps {
 
 export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
   return (
-    <div className="fixed bottom-20 left-3 right-3 z-50 bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-gray-300 p-4">
+    <div className="fixed bottom-24 left-4 right-4 z-[9999] bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-gray-300 p-4">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
           <Download size={18} className="text-emerald-400" />
@@ -99,7 +98,7 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
 
 export function OfflineIndicator() {
   return (
-    <div className="fixed top-3 left-3 right-3 z-50 bg-amber-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-2 border border-amber-500">
+    <div className="fixed top-4 left-4 right-4 z-[9999] bg-amber-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-2 border border-amber-500">
       <WifiOff size={14} />
       <p className="text-xs font-medium">You're offline — data is saved locally</p>
     </div>
