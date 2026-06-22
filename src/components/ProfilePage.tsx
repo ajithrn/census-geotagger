@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
+import { LANGUAGES } from '../types/survey';
 
 export interface AppSettings {
   surveyorName: string;
@@ -67,12 +68,19 @@ export function ProfilePage(_props: ProfilePageProps) {
           placeholder="e.g. Ward 5, Sector B"
         />
 
-        <SettingsInput
-          label="Default Language"
-          value={settings.defaultLanguage}
-          onChange={v => updateField('defaultLanguage', v)}
-          placeholder="e.g. Malayalam, Hindi"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Default Language</label>
+          <select
+            value={settings.defaultLanguage}
+            onChange={e => updateField('defaultLanguage', e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white"
+          >
+            <option value="">Select language</option>
+            {LANGUAGES.map(lang => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+        </div>
 
         <SettingsInput
           label="Organization / Department"

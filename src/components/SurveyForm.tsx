@@ -23,6 +23,7 @@ import {
   WATER_SOURCE_LABELS,
   RATION_CARD_LABELS,
   VISIT_STATUS_LABELS,
+  LANGUAGES,
 } from '../types/survey';
 
 const STEPS = [
@@ -348,7 +349,25 @@ function StepHousehold({ formData, updateField }: StepProps) {
     <div className="space-y-4">
       <FormInput icon={<User size={16} />} label="Head of Household (Full Name)" value={formData.headName} onChange={v => updateField('headName', v)} required placeholder="Full name" />
       <FormInput icon={<Phone size={16} />} label="Phone Number" value={formData.headPhone} onChange={v => updateField('headPhone', v)} type="tel" placeholder="Mobile number" />
-      <FormInput icon={<Languages size={16} />} label="Primary Language" value={formData.primaryLanguage} onChange={v => updateField('primaryLanguage', v)} placeholder="e.g. Hindi, Tamil" />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          Primary Language
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Languages size={16} /></span>
+          <select
+            value={formData.primaryLanguage}
+            onChange={e => updateField('primaryLanguage', e.target.value)}
+            className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-colors bg-white appearance-none"
+          >
+            <option value="">Select language</option>
+            {LANGUAGES.map(lang => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="pt-2">
         <SectionLabel icon={<Users size={15} />} text="Family Members" />

@@ -105,6 +105,24 @@ export const INCOME_LABELS: Record<IncomeRange, string> = {
   'above-50000': 'Above ₹50,000',
 };
 
+export const LANGUAGES = [
+  'Malayalam',
+  'Tamil',
+  'Hindi',
+  'English',
+  'Kannada',
+  'Telugu',
+  'Bengali',
+  'Marathi',
+  'Gujarati',
+  'Odia',
+  'Punjabi',
+  'Urdu',
+  'Assamese',
+  'Konkani',
+  'Other',
+];
+
 export const WATER_SOURCE_LABELS: Record<WaterSource, string> = {
   tap: 'Piped/Tap Water',
   well: 'Well',

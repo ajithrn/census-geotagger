@@ -9,7 +9,7 @@ export function AboutPage() {
         <div>
           <h2 className="text-lg font-bold text-gray-800">Census GeoTagger</h2>
           <p className="text-xs text-gray-500">Field Survey & Geolocation Logger</p>
-          <p className="text-[10px] text-gray-400 font-mono mt-0.5">Version 1.4.0</p>
+          <p className="text-[10px] text-gray-400 font-mono mt-0.5">Version 1.4.1</p>
         </div>
       </div>
 

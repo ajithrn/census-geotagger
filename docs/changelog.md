@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2025-06-21
+
+### Added
+
+- Language dropdown with predefined Indian languages (Malayalam, Tamil, Hindi, English, Kannada, Telugu, Bengali, Marathi, Gujarati, Odia, Punjabi, Urdu, Assamese, Konkani, Other)
+- Language dropdown in both survey form (Step 2) and Profile page
+
+### Fixed
+
+- Bottom navbar disappearing on page reload or when PWA update banner appears
+- Removed `fixed inset-0` on outer container that conflicted with mobile dynamic viewport
+- Added `overflow-hidden h-dvh` to body to prevent scroll bounce hiding navbar
+
 ## [1.4.0] - 2025-06-21
 
 ### Added

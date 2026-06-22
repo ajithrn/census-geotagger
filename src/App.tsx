@@ -40,8 +40,8 @@ function App() {
   const isMainTab = !['profile', 'settings', 'about'].includes(activeTab);
 
   return (
-    <div className="h-dvh w-full flex flex-col items-center justify-center bg-gray-100 fixed inset-0">
-      {/* PWA floating notifications — truly fixed, outside everything */}
+    <div className="h-dvh w-full flex flex-col items-center justify-center bg-gray-100 overflow-hidden overscroll-none">
+      {/* PWA floating notifications */}
       {isOffline && <OfflineIndicator />}
       {needsUpdate && <UpdateBanner onUpdate={updateServiceWorker} />}
       {showInstallPrompt && installReady && (
