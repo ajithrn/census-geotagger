@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Map as MapIcon } from 'lucide-react';
+import { Map as MapIcon, Maximize2, Minimize2 } from 'lucide-react';
 import { getAllVisits } from '../db/database';
 import type { HouseholdVisit } from '../types/survey';
 import {
@@ -70,10 +70,23 @@ function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
       const bounds = L.latLngBounds(
         visits.map(v => [v.geoLocation.latitude, v.geoLocation.longitude] as [number, number])
       );
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
     }
   }, [visits, map]);
 
+  return null;
+}
+
+function TrackZoom() {
+  const map = useMap();
+  useEffect(() => {
+    const handler = () => {
+      localStorage.setItem('cgt-map-zoom', String(map.getZoom()));
+    };
+    map.on('zoomend', handler);
+    handler(); // save initial zoom
+    return () => { map.off('zoomend', handler); };
+  }, [map]);
   return null;
 }
 
@@ -84,6 +97,7 @@ interface MapViewProps {
 export function MapView({ refreshTrigger }: MapViewProps) {
   const [visits, setVisits] = useState<HouseholdVisit[]>([]);
   const [filter, setFilter] = useState<string>('all');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +116,24 @@ export function MapView({ refreshTrigger }: MapViewProps) {
   const defaultCenter: [number, number] = visits.length > 0
     ? [visits[0].geoLocation.latitude, visits[0].geoLocation.longitude]
     : [20.5937, 78.9629];
+
+  const toggleFullscreen = () => {
+    if (!mapRef.current) return;
+    if (!isFullscreen) {
+      mapRef.current.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
+  // Listen for fullscreen exit via Escape key
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -134,7 +166,17 @@ export function MapView({ refreshTrigger }: MapViewProps) {
       </div>
 
       {/* Map */}
-      <div className="flex-1 relative" ref={mapRef} id="map-container">
+      <div className="flex-1 relative bg-white" ref={mapRef} id="map-container">
+        {/* Fullscreen button */}
+        {visits.length > 0 && (
+          <button
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            className="absolute top-3 right-3 z-[1000] w-9 h-9 bg-white border border-gray-300 rounded-lg shadow-md flex items-center justify-center text-gray-600 active:bg-gray-100"
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        )}
         {visits.length === 0 ? (
           <div className="flex items-center justify-center h-full bg-gray-50">
             <div className="text-center">
@@ -149,6 +191,7 @@ export function MapView({ refreshTrigger }: MapViewProps) {
           <MapContainer
             center={defaultCenter}
             zoom={13}
+            maxZoom={19}
             className="h-full w-full"
             scrollWheelZoom={true}
           >
@@ -157,14 +200,15 @@ export function MapView({ refreshTrigger }: MapViewProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBounds visits={filteredVisits} />
+            <TrackZoom />
             {filteredVisits.map((visit, index) => {
-              // Offset markers at same location so they don't fully overlap
+              // Only offset markers at truly identical coordinates (within ~1m)
               const sameLocCount = filteredVisits.slice(0, index).filter(v =>
-                Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00005 &&
-                Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00005
+                Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00001 &&
+                Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00001
               ).length;
-              const offsetLat = sameLocCount * 0.00015;
-              const offsetLng = sameLocCount * 0.00015;
+              const offsetLat = sameLocCount * 0.00005;
+              const offsetLng = sameLocCount * 0.00005;
 
               return (
               <Marker

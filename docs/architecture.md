@@ -52,11 +52,12 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 
 ### PDF Map Rendering
 
-- Creates a hidden 1800x1800px off-screen Leaflet map for high-res capture
-- Screenshots at 3x scale → 5400x5400px square image
-- Numbered markers match the in-app map pins
-- Does not depend on current tab or visible map — renders independently
-- Handles close/overlapping pins with coordinate offset
+- Single `renderMapImage()` function used by both PDF and standalone image export
+- Creates a hidden 1800x1800px off-screen Leaflet map with compact 20px numbered pins
+- Screenshots at 3x scale → 5400x5400px square image (always hi-res, regardless of device)
+- Uses fitBounds with 200px padding and maxZoom 18 for tight framing
+- Only offsets markers at truly identical GPS coordinates (<1m apart) by ~5m
+- Does not depend on current tab, visible map, or saved zoom level
 
 ### Edit Flow
 
@@ -97,7 +98,8 @@ src/
 2. **Edit** → Record loaded into form → Updated via put() → Navigate to Records
 3. **Map View** → Reads all visits → Renders numbered Leaflet markers (with overlap offset)
 4. **Records** → Reads from IndexedDB → Full data expand → Edit/Delete actions
-5. **Export PDF** → Renders hidden map → Screenshots at 3x → Generates multi-page report
+4. **Export PDF** → Renders hidden map (1800px @3x) → Generates multi-page report
+5. **Export Map Image** → Same renderMapImage() → Downloads as PNG
 6. **Export CSV/GeoJSON** → Reads from IndexedDB → Generates file → Browser download
 
 ## Database Schema
@@ -121,7 +123,7 @@ Write operations use `db.visits.put()` for reliable upsert behavior.
 ## PDF Report Structure
 
 1. **Cover/Map Page** — Title, metadata, hi-res square map with numbered pins, color legend
-2. **Map Index** — Table linking pin # to name, address, type, occupation, status, ward
+2. **Map Index** — Proportional table with pin badges, name, address, type, occupation, status, ward
 3. **Statistics Dashboard** — Key metrics boxes, demographics, infrastructure, occupation/type breakdown
 4. **Detail Pages** — One per household with pin badge, all fields in sections, notes
 
@@ -136,7 +138,7 @@ Write operations use `db.visits.put()` for reliable upsert behavior.
 | Map | Leaflet + react-leaflet | Mature, lightweight, OSM integration |
 | Tiles | OpenStreetMap | Free, no API key, community-maintained |
 | Storage | Dexie.js 4 (IndexedDB) | Typed, promise-based, large storage quota |
-| PDF | jsPDF + html2canvas + Leaflet | Client-side map render + report generation |
+| PDF | jsPDF + html2canvas + Leaflet | Client-side hidden map render + report generation |
 | CSV | PapaParse | Robust CSV generation with proper escaping |
 | PWA | vite-plugin-pwa (prompt mode) | Manual SW registration, user-controlled updates |
 

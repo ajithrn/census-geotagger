@@ -85,9 +85,12 @@ function HelperComponent({ label }: { label: string }) {
 ## Map Patterns
 
 - Numbered pins using `L.divIcon` with flexbox-centered index number
-- Overlap handling: offset markers at same coordinates by ~15m diagonally
+- Compact 20px pins for export, 30px for in-app view
+- Overlap handling: offset only for identical coordinates (<1m), by ~5m diagonally
 - `zIndexOffset` ensures later markers are clickable on top
-- PDF export: render hidden 1800x1800 Leaflet map, screenshot at 3x scale
+- Fullscreen button using native Fullscreen API
+- fitBounds maxZoom 18, MapContainer maxZoom 19
+- Single `renderMapImage()` for both PDF and standalone image export (always 1800x1800 @3x)
 
 ## Error Handling
 

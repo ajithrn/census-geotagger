@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2025-06-21
+
+### Added
+
+- Export Map Image as standalone hi-res PNG
+- Fullscreen button on map view (native Fullscreen API)
+- Visit time shown in Records list (below date)
+
+### Changed
+
+- Export always renders at full resolution (1800x1800 @3x) regardless of device
+- Export uses compact 20px pins (vs 30px in-app) for clearer separation
+- Overlap offset reduced to ~5m and only triggers for truly identical coordinates (<1m apart)
+- Map view fitBounds allows up to zoom 18 for close-up detail
+- MapContainer max zoom increased to 19 for manual zoom
+- PDF Map Index table uses proportional columns with header background and proper alignment
+- Single `renderMapImage()` function shared by both PDF and image export
+- Removed zoom/localStorage dependency from export — always fitBounds with generous padding
+- Visit ordering: first recorded = #1 (chronological, not reversed)
+
+### Fixed
+
+- PDF index table columns overflowing off page
+- Pin badge number vertical alignment in PDF index
+- Close pins appearing too far apart in export due to aggressive offset
+- Export map not rendering on mobile (was OOM from oversized canvas — now always 1800px works)
+
 ## [1.2.0] - 2025-06-21
 
 ### Added

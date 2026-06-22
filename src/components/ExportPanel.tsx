@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   FileSpreadsheet, Globe, FileText, Trash2, Loader2,
-  Users, Home, CheckCircle2, Clock, AlertTriangle,
+  Users, Home, CheckCircle2, Clock, AlertTriangle, MapPin,
 } from 'lucide-react';
 import { getAllVisits } from '../db/database';
 import { exportToCsv, exportToGeoJson } from '../utils/exportCsv';
-import { exportToPdf } from '../utils/exportPdf';
+import { exportToPdf, exportMapImage } from '../utils/exportPdf';
 import type { HouseholdVisit } from '../types/survey';
 import { VISIT_STATUS_LABELS, MARKER_COLORS } from '../types/survey';
 
@@ -50,6 +50,15 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
     setExporting('pdf');
     try {
       await exportToPdf(visits, null, `census-report-${Date.now()}`);
+    } finally {
+      setTimeout(() => setExporting(null), 2000);
+    }
+  };
+
+  const handleExportMapImage = async () => {
+    setExporting('map');
+    try {
+      await exportMapImage(visits, `census-map-${Date.now()}`);
     } finally {
       setTimeout(() => setExporting(null), 2000);
     }
@@ -128,6 +137,14 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
           icon={<FileText size={20} />}
           title="Export PDF Report"
           desc="Map, legend, stats, and all household details"
+        />
+        <ExportButton
+          onClick={handleExportMapImage}
+          disabled={visits.length === 0 || exporting === 'map'}
+          loading={exporting === 'map'}
+          icon={<MapPin size={20} />}
+          title="Export Map Image"
+          desc="High-res PNG of map with numbered pins"
         />
       </div>
 

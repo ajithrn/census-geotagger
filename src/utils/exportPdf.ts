@@ -2,26 +2,63 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import L from 'leaflet';
 import type { HouseholdVisit } from '../types/survey';
-import {
-  MARKER_COLORS,
-  VISIT_STATUS_LABELS,
-  HOUSEHOLD_TYPE_LABELS,
-  STRUCTURE_TYPE_LABELS,
-  OCCUPATION_LABELS,
-  INCOME_LABELS,
-  WATER_SOURCE_LABELS,
-  RATION_CARD_LABELS,
-} from '../types/survey';
-import { createNumberedIcon } from '../components/MapView';
+import { MARKER_COLORS, VISIT_STATUS_LABELS, HOUSEHOLD_TYPE_LABELS, STRUCTURE_TYPE_LABELS, OCCUPATION_LABELS, INCOME_LABELS, WATER_SOURCE_LABELS, RATION_CARD_LABELS } from '../types/survey';
 
 // --- MAP RENDERING ---
+
+// Compact pin icon for export (smaller so close pins don't overlap)
+function createExportPin(color: string, index: number): L.DivIcon {
+  const fontSize = index > 99 ? '6px' : index > 9 ? '7px' : '8px';
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="
+      position: relative;
+      width: 20px;
+      height: 26px;
+    ">
+      <div style="
+        background-color: ${color};
+        width: 20px;
+        height: 20px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        border: 2px solid white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        position: absolute;
+        top: 0;
+        left: 0;
+      "></div>
+      <span style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${fontSize};
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+      ">${index}</span>
+    </div>`,
+    iconSize: [20, 26],
+    iconAnchor: [10, 26],
+    popupAnchor: [0, -24],
+  });
+}
 
 async function renderMapImage(visits: HouseholdVisit[]): Promise<string | null> {
   if (visits.length === 0) return null;
 
-  // Create hidden container — square for high-res capture
+  // Always hi-res for export regardless of device
+  const mapSize = 1800;
+  const captureScale = 3;
+
+  // Create hidden container
   const container = document.createElement('div');
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1800px;height:1800px;z-index:-1;';
+  container.style.cssText = `position:fixed;left:-9999px;top:0;width:${mapSize}px;height:${mapSize}px;z-index:-1;`;
   document.body.appendChild(container);
 
   try {
@@ -37,19 +74,27 @@ async function renderMapImage(visits: HouseholdVisit[]): Promise<string | null> 
       maxZoom: 19,
     }).addTo(map);
 
-    // Add numbered markers
+    // Add numbered markers with compact export pins
+    // Only offset markers at truly identical coordinates (within ~1m)
     visits.forEach((visit, index) => {
+      const sameLocCount = visits.slice(0, index).filter(v =>
+        Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00001 &&
+        Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00001
+      ).length;
+      const offsetLat = sameLocCount * 0.00005;
+      const offsetLng = sameLocCount * 0.00005;
+
       L.marker(
-        [visit.geoLocation.latitude, visit.geoLocation.longitude],
-        { icon: createNumberedIcon(visit.markerColor, index + 1) }
+        [visit.geoLocation.latitude + offsetLat, visit.geoLocation.longitude + offsetLng],
+        { icon: createExportPin(visit.markerColor, index + 1) }
       ).addTo(map);
     });
 
-    // Fit bounds — generous padding to keep good zoom level
+    // Always fit bounds zoomed in tight so pins are clearly separated
     const bounds = L.latLngBounds(
       visits.map(v => [v.geoLocation.latitude, v.geoLocation.longitude] as [number, number])
     );
-    map.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
+    map.fitBounds(bounds, { padding: [200, 200], maxZoom: 18 });
 
     // Wait for tiles to load
     await new Promise<void>((resolve) => {
@@ -57,23 +102,22 @@ async function renderMapImage(visits: HouseholdVisit[]): Promise<string | null> 
       tileLayer.on('load', () => {
         if (!loaded) { loaded = true; setTimeout(resolve, 500); }
       });
-      // Fallback timeout
       setTimeout(resolve, 4000);
     });
 
     // Extra wait for marker rendering
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    // High-res screenshot (3x scale)
+    // High-res screenshot
     const canvas = await html2canvas(container, {
       useCORS: true,
       allowTaint: true,
-      scale: 3,
+      scale: captureScale,
       logging: false,
       backgroundColor: '#f8fafc',
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+    const imgData = canvas.toDataURL('image/png');
 
     // Cleanup
     map.remove();
@@ -86,7 +130,26 @@ async function renderMapImage(visits: HouseholdVisit[]): Promise<string | null> 
   }
 }
 
-// --- PDF GENERATION ---
+// --- EXPORT MAP AS IMAGE ---
+
+export async function exportMapImage(visits: HouseholdVisit[], filename: string = 'census-map'): Promise<void> {
+  const imgData = await renderMapImage(visits);
+  if (!imgData) {
+    alert('Could not render map. Make sure you have visits recorded.');
+    return;
+  }
+
+  const response = await fetch(imgData);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filename}.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export async function exportToPdf(
   visits: HouseholdVisit[],
@@ -112,11 +175,11 @@ export async function exportToPdf(
   pdf.setTextColor(0, 0, 0);
   y += 8;
 
-  // Render map
+  // Render map image (same function used for standalone image export)
   const mapImg = await renderMapImage(visits);
   if (mapImg) {
     const mapH = Math.min(UW, H - y - M - 20); // square: width = height, capped to fit page
-    pdf.addImage(mapImg, 'JPEG', M, y, UW, mapH);
+    pdf.addImage(mapImg, 'PNG', M, y, UW, mapH);
     y += mapH + 4;
 
     // Legend below map
@@ -197,26 +260,29 @@ function drawMapLegend(pdf: jsPDF, y: number, M: number, visits: HouseholdVisit[
 }
 
 function drawIndexTable(pdf: jsPDF, visits: HouseholdVisit[], M: number, y: number, UW: number, H: number): number {
-  const cols = [10, 34, 40, 18, 24, 24, 22, 16];
-  const headers = ['#', 'Name', 'Address', 'Members', 'Type', 'Occupation', 'Status', 'Ward'];
+  // Proportional columns that fit within usable width
+  const colRatios = [0.05, 0.18, 0.22, 0.08, 0.13, 0.13, 0.11, 0.10];
+  const cols = colRatios.map(r => r * UW);
+  const headers = ['#', 'Name', 'Address', 'Mbrs', 'Type', 'Occupation', 'Status', 'Ward'];
 
   const drawTableHeader = () => {
-    pdf.setFontSize(7.5);
+    // Header background
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(M, y - 3.5, UW, 5.5, 'F');
+    pdf.setFontSize(7);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(80);
+    pdf.setTextColor(60, 60, 60);
     let x = M;
-    headers.forEach((h, i) => { pdf.text(h, x, y); x += cols[i]; });
-    pdf.setTextColor(0);
-    y += 2;
-    pdf.setDrawColor(200);
+    headers.forEach((h, i) => { pdf.text(h, x + 1.5, y); x += cols[i]; });
+    pdf.setTextColor(0, 0, 0);
+    y += 3;
+    pdf.setDrawColor(180, 180, 180);
     pdf.line(M, y, M + UW, y);
     y += 4;
     return y;
   };
 
   y = drawTableHeader();
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(7);
 
   visits.forEach((visit, index) => {
     if (y > H - 15) {
@@ -229,31 +295,31 @@ function drawIndexTable(pdf: jsPDF, visits: HouseholdVisit[], M: number, y: numb
 
     // Colored number badge
     pdf.setFillColor(visit.markerColor);
-    pdf.circle(x + 2.5, y - 0.8, 2, 'F');
-    pdf.setTextColor(255);
-    pdf.setFontSize(5);
+    pdf.circle(x + 3.5, y - 0.5, 2.2, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(5.5);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(String(index + 1), x + 2.5, y - 0.2, { align: 'center' });
-    pdf.setTextColor(0);
+    pdf.text(String(index + 1), x + 3.5, y + 0.5, { align: 'center' });
+    pdf.setTextColor(0, 0, 0);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
     x += cols[0];
 
     const row = [
-      visit.headName.slice(0, 18),
-      visit.address.slice(0, 22),
+      visit.headName.slice(0, 16),
+      visit.address.slice(0, 20),
       String(visit.totalMembers),
-      HOUSEHOLD_TYPE_LABELS[visit.householdType].slice(0, 12),
-      OCCUPATION_LABELS[visit.primaryOccupation].slice(0, 12),
-      VISIT_STATUS_LABELS[visit.visitStatus],
+      HOUSEHOLD_TYPE_LABELS[visit.householdType].slice(0, 11),
+      OCCUPATION_LABELS[visit.primaryOccupation].slice(0, 11),
+      VISIT_STATUS_LABELS[visit.visitStatus].slice(0, 10),
       (visit.ward || '—').slice(0, 8),
     ];
-    row.forEach((cell, i) => { pdf.text(cell, x, y); x += cols[i + 1]; });
-    y += 6;
+    row.forEach((cell, i) => { pdf.text(cell, x + 1.5, y); x += cols[i + 1]; });
+    y += 5.5;
 
-    // Subtle row separator
-    pdf.setDrawColor(240);
-    pdf.line(M, y - 2.5, M + UW, y - 2.5);
+    // Row separator
+    pdf.setDrawColor(230, 230, 230);
+    pdf.line(M, y - 2, M + UW, y - 2);
   });
 
   return y;

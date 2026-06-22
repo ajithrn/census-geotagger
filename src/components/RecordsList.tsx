@@ -113,6 +113,7 @@ export function RecordsList({ refreshTrigger, onRefresh, onEdit }: RecordsListPr
                 <div className="text-right flex-shrink-0 mr-1">
                   <p className="text-[10px] font-mono text-gray-400">{visit.householdId}</p>
                   <p className="text-[10px] text-gray-400">{new Date(visit.createdAt).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-gray-400">{new Date(visit.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 <ChevronDown size={16} className={`text-gray-400 transition-transform flex-shrink-0 ${expandedId === visit.id ? 'rotate-180' : ''}`} />
               </button>

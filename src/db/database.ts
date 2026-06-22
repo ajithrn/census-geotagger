@@ -39,7 +39,7 @@ export async function getVisit(id: string): Promise<HouseholdVisit | undefined> 
 }
 
 export async function getAllVisits(): Promise<HouseholdVisit[]> {
-  return await db.visits.orderBy('createdAt').reverse().toArray();
+  return await db.visits.orderBy('createdAt').toArray();
 }
 
 export async function getVisitsByStatus(status: string): Promise<HouseholdVisit[]> {
