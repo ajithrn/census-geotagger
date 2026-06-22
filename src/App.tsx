@@ -7,11 +7,12 @@ import { ExportPanel } from './components/ExportPanel';
 import { AboutPage } from './components/AboutPage';
 import { SettingsPage } from './components/SettingsPage';
 import { ProfilePage } from './components/ProfilePage';
+import { HelpPage } from './components/HelpPage';
 import { MoreMenu } from './components/MorePage';
 import { UpdateBanner, InstallPrompt, OfflineIndicator } from './components/PWAPrompts';
 import { usePWA } from './hooks/usePWA';
 
-type Tab = 'form' | 'map' | 'records' | 'export' | 'profile' | 'settings' | 'about';
+type Tab = 'form' | 'map' | 'records' | 'export' | 'profile' | 'settings' | 'help' | 'about';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('form');
@@ -37,10 +38,10 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isMainTab = !['profile', 'settings', 'about'].includes(activeTab);
+  const isMainTab = !['profile', 'settings', 'help', 'about'].includes(activeTab);
 
   return (
-    <div className="h-dvh w-full flex flex-col items-center justify-center bg-gray-100 overflow-hidden overscroll-none">
+    <div className="h-full w-full flex flex-col items-center justify-center bg-gray-100 overflow-hidden overscroll-none">
       {/* PWA floating notifications */}
       {isOffline && <OfflineIndicator />}
       {needsUpdate && <UpdateBanner onUpdate={updateServiceWorker} />}
@@ -71,7 +72,7 @@ function App() {
               ← Back
             </button>
             <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-              {activeTab === 'profile' ? 'Profile' : activeTab === 'settings' ? 'Settings' : 'About'}
+              {activeTab === 'profile' ? 'Profile' : activeTab === 'settings' ? 'Settings' : activeTab === 'help' ? 'Help' : 'About'}
             </span>
           </div>
         )}
@@ -86,6 +87,7 @@ function App() {
           {activeTab === 'export' && <ExportPanel refreshTrigger={refreshTrigger} />}
           {activeTab === 'profile' && <ProfilePage />}
           {activeTab === 'settings' && <SettingsPage />}
+          {activeTab === 'help' && <HelpPage />}
           {activeTab === 'about' && <AboutPage />}
 
           {/* More bottom sheet — inside main so it sits above nav naturally */}

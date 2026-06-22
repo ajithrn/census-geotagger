@@ -1,9 +1,9 @@
-import { Settings, Info, ChevronRight, X, UserCircle } from 'lucide-react';
+import { Settings, Info, ChevronRight, X, UserCircle, HelpCircle } from 'lucide-react';
 
 interface MoreMenuProps {
   open: boolean;
   onClose: () => void;
-  onNavigate: (page: 'profile' | 'settings' | 'about') => void;
+  onNavigate: (page: 'profile' | 'settings' | 'help' | 'about') => void;
 }
 
 export function MoreMenu({ open, onClose, onNavigate }: MoreMenuProps) {
@@ -33,6 +33,12 @@ export function MoreMenu({ open, onClose, onNavigate }: MoreMenuProps) {
             title="Settings"
             desc="Backup, import, data management"
             onClick={() => { onClose(); onNavigate('settings'); }}
+          />
+          <MenuButton
+            icon={<HelpCircle size={18} />}
+            title="Help"
+            desc="How to use, FAQ, troubleshooting"
+            onClick={() => { onClose(); onNavigate('help'); }}
           />
           <MenuButton
             icon={<Info size={18} />}

@@ -29,8 +29,9 @@ export async function exportToPdf(
   pdf.setTextColor(0, 0, 0);
   y += 8;
 
-  // Render map using canvas-based renderer (works on mobile)
-  const mapImg = await renderMapToCanvas(visits, 1200);
+  // Render map — 1024 on mobile (OffscreenCanvas handles memory), 1200 on desktop
+  const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const mapImg = await renderMapToCanvas(visits, isMobile ? 1024 : 1200);
   if (mapImg) {
     const mapH = Math.min(UW, H - y - M - 20);
     pdf.addImage(mapImg, 'PNG', M, y, UW, mapH);

@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2025-06-22
+
+### Added
+
+- Help page under More menu (accordion FAQ format with 6 sections, 25+ Q&As)
+- OffscreenCanvas for map export (prevents Chrome compositor memory eviction on mobile)
+- SW cache lookup for tiles (uses cached tiles before network fetch)
+- Tile retry logic (4 attempts with 500ms delay, blob size validation)
+
+### Changed
+
+- Map export renders tiles sequentially (fetch → draw → discard, one at a time)
+- Export uses its own calculateZoom (not synced to map view zoom)
+- Canvas sizes: 1024px mobile / 1200px desktop (PDF), 1024px / 2400px (image)
+- Falls back to regular canvas on browsers without OffscreenCanvas
+- More menu now has 4 items: Profile, Settings, Help, About
+
+### Fixed
+
+- Mobile PWA navbar disappearing on reload (100% height chain instead of dvh)
+- Map tiles graying out during export (Chrome compositor evicting canvas backing store)
+- Tiles failing to load due to OSM rate-limiting (sequential + retry solves this)
+
+## [1.6.1] - 2025-06-21
+
+### Fixed
+
+- Incomplete map tile rendering on mobile (gray areas in export)
+- Tile fetching now retries failed tiles (up to 3 attempts with 500ms delay)
+- Batched tile fetching (4 at a time) to avoid OSM rate-limiting on mobile
+- Sequential batches ensure all tiles load before pins are drawn
+
 ## [1.6.0] - 2025-06-21
 
 ### Added

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Full height layout — use 100% chain, not dvh (unreliable on mobile reload) */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 /* Leaflet map container */
 .leaflet-container {
   width: 100%;

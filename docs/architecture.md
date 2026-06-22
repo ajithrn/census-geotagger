@@ -54,11 +54,16 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 ### PDF Map Rendering
 
 - Single `renderMapToCanvas()` function in `mapRenderer.ts` used by both PDF and standalone image export
-- Fetches OSM tiles via `fetch()` as blobs (bypasses CORS), stitches onto a `<canvas>`
+- Uses OffscreenCanvas when available (prevents Chrome compositor from evicting backing store on mobile)
+- Fetches OSM tiles sequentially — each tile drawn to canvas immediately after fetch, then discarded from memory
+- Checks SW cache first (tiles already loaded by map view), falls back to network with 4 retries
+- Only one Image object in memory at a time (prevents mobile GC from clearing tiles)
 - Draws numbered pin markers programmatically using canvas arc/fill
+- Overlapping pins rotate their legs outward with progressive length
 - Auto-calculates zoom level to fit all pins with padding
-- No Leaflet, no html2canvas, no hidden DOM — works reliably on mobile
-- Canvas size: 1200px for PDF, 2400px for standalone image export
+- No Leaflet, no html2canvas, no hidden DOM — pure canvas + fetch
+- Canvas size: 1024px mobile / 1200px desktop (PDF), 1024px mobile / 2400px desktop (image)
+- Falls back to regular HTMLCanvasElement on browsers without OffscreenCanvas
 
 ### Edit Flow
 
@@ -103,8 +108,8 @@ src/
 2. **Edit** → Record loaded into form → Updated via put() → Navigate to Records
 3. **Map View** → Reads all visits → Renders numbered Leaflet markers (with overlap offset)
 4. **Records** → Reads from IndexedDB → Full data expand → Edit/Delete actions
-4. **Export PDF** → Renders hidden map (1800px @3x) → Generates multi-page report
-5. **Export Map Image** → Same renderMapImage() → Downloads as PNG
+4. **Export PDF** → Sequential tile fetch+draw to canvas → Pins drawn → PNG embedded in PDF
+5. **Export Map Image** → Same renderMapToCanvas() → Downloads as PNG
 6. **Export CSV/GeoJSON** → Reads from IndexedDB → Generates file → Browser download
 
 ## Database Schema
@@ -143,7 +148,7 @@ Write operations use `db.visits.put()` for reliable upsert behavior.
 | Map | Leaflet + react-leaflet | Mature, lightweight, OSM integration |
 | Tiles | OpenStreetMap | Free, no API key, community-maintained |
 | Storage | Dexie.js 4 (IndexedDB) | Typed, promise-based, large storage quota |
-| PDF | jsPDF + canvas tile renderer | Client-side map render + report generation |
+| PDF | jsPDF + canvas tile renderer | Sequential tile fetch, draw-per-tile, pin overlay |
 | CSV | PapaParse | Robust CSV generation with proper escaping |
 | PWA | vite-plugin-pwa (prompt mode) | Manual SW registration, user-controlled updates |
 

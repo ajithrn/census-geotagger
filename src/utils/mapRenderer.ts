@@ -46,32 +46,67 @@ function calculateZoom(visits: HouseholdVisit[], canvasSize: number): number {
 
 // --- FETCH TILE ---
 
-async function fetchTile(x: number, y: number, z: number): Promise<HTMLImageElement | null> {
+async function fetchTile(x: number, y: number, z: number, retries: number = 2): Promise<HTMLImageElement | null> {
   const subdomain = ['a', 'b', 'c'][Math.abs(x + y) % 3];
   const url = `https://${subdomain}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
+  // Try SW cache first (tiles already loaded by the map view)
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    const imgUrl = URL.createObjectURL(blob);
-
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(imgUrl);
-        resolve(img);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(imgUrl);
-        resolve(null);
-      };
-      img.src = imgUrl;
-    });
+    const cache = await caches.open('osm-tiles');
+    // Try all subdomain variants since Leaflet may have cached with a different one
+    for (const s of ['a', 'b', 'c']) {
+      const cacheUrl = `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+      const cachedResponse = await cache.match(cacheUrl);
+      if (cachedResponse) {
+        const blob = await cachedResponse.blob();
+        if (blob.size > 100) {
+          const img = await blobToImage(blob);
+          if (img) return img;
+        }
+      }
+    }
   } catch {
-    return null;
+    // Cache API not available — fall through to network
   }
+
+  // Fallback: fetch from network with retries
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        if (attempt < retries) { await delay(500); continue; }
+        return null;
+      }
+      const blob = await response.blob();
+      if (blob.size < 100) {
+        if (attempt < retries) { await delay(500); continue; }
+        return null;
+      }
+      const img = await blobToImage(blob);
+      if (img) return img;
+      if (attempt < retries) await delay(500);
+    } catch {
+      if (attempt < retries) await delay(500);
+    }
+  }
+  return null;
 }
+
+function blobToImage(blob: Blob): Promise<HTMLImageElement | null> {
+  const imgUrl = URL.createObjectURL(blob);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => { URL.revokeObjectURL(imgUrl); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(imgUrl); resolve(null); };
+    image.src = imgUrl;
+  });
+}
+
+function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// Reserved: batch fetching (not used — sequential draw is more reliable on mobile)
+// async function fetchTilesInBatches(...) { ... }
 
 // --- DRAW PIN ---
 
@@ -141,15 +176,28 @@ function drawPin(
 export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: number = 1200): Promise<string | null> {
   if (visits.length === 0) return null;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
-  const ctx = canvas.getContext('2d');
+  // Use OffscreenCanvas if available (avoids Chrome compositor eviction on mobile)
+  let canvas: HTMLCanvasElement | OffscreenCanvas;
+  let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+
+  if (typeof OffscreenCanvas !== 'undefined') {
+    canvas = new OffscreenCanvas(canvasSize, canvasSize);
+    ctx = canvas.getContext('2d');
+  } else {
+    const el = document.createElement('canvas');
+    el.width = canvasSize;
+    el.height = canvasSize;
+    canvas = el;
+    ctx = el.getContext('2d');
+  }
   if (!ctx) return null;
 
+  // Cast for drawPin compatibility (OffscreenCanvas2D is API-compatible)
+  const drawCtx = ctx as unknown as CanvasRenderingContext2D;
+
   // Background
-  ctx.fillStyle = '#e8e8e8';
-  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  drawCtx.fillStyle = '#e8e8e8';
+  drawCtx.fillRect(0, 0, canvasSize, canvasSize);
 
   // Calculate center and zoom
   const lats = visits.map(v => v.geoLocation.latitude);
@@ -172,25 +220,18 @@ export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: nu
   const offsetX = canvasSize / 2 - (centerTileX - startTileX) * 256;
   const offsetY = canvasSize / 2 - (centerTileY - startTileY) * 256;
 
-  // Fetch and draw tiles
-  const tilePromises: Promise<{ img: HTMLImageElement | null; px: number; py: number }>[] = [];
-
+  // Fetch and draw tiles ONE AT A TIME — draw immediately, then discard image
+  // This prevents mobile browsers from GC'ing images before we draw them
   for (let ty = startTileY; ty < endTileY; ty++) {
     for (let tx = startTileX; tx < endTileX; tx++) {
       const px = (tx - startTileX) * 256 + offsetX;
       const py = (ty - startTileY) * 256 + offsetY;
-      tilePromises.push(
-        fetchTile(tx, ty, zoom).then(img => ({ img, px, py }))
-      );
+      const img = await fetchTile(tx, ty, zoom, 3);
+      if (img) {
+        drawCtx.drawImage(img, px, py, 256, 256);
+      }
     }
   }
-
-  const tiles = await Promise.all(tilePromises);
-  tiles.forEach(({ img, px, py }) => {
-    if (img) {
-      ctx.drawImage(img, px, py, 256, 256);
-    }
-  });
 
   // Draw pins (later pins on top)
   const pinSize = Math.max(20, Math.min(36, canvasSize / 30));
@@ -216,24 +257,36 @@ export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: nu
     ).length;
 
     const rotation = overlapIndex > 0 ? (rotationSlots[overlapIndex % rotationSlots.length] || 0) : 0;
-    drawPin(ctx, px, py, visit.markerColor, index + 1, pinSize, rotation, overlapIndex);
+    drawPin(drawCtx, px, py, visit.markerColor, index + 1, pinSize, rotation, overlapIndex);
   });
 
   // Add attribution
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillRect(0, canvasSize - 20, canvasSize, 20);
-  ctx.fillStyle = '#666';
-  ctx.font = '10px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('© OpenStreetMap contributors', canvasSize / 2, canvasSize - 7);
+  drawCtx.fillStyle = 'rgba(255,255,255,0.8)';
+  drawCtx.fillRect(0, canvasSize - 20, canvasSize, 20);
+  drawCtx.fillStyle = '#666';
+  drawCtx.font = '10px system-ui, sans-serif';
+  drawCtx.textAlign = 'center';
+  drawCtx.fillText('© OpenStreetMap contributors', canvasSize / 2, canvasSize - 7);
 
-  return canvas.toDataURL('image/png');
+  // Convert to data URL
+  if (canvas instanceof OffscreenCanvas) {
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  }
+  return (canvas as HTMLCanvasElement).toDataURL('image/png');
 }
 
 // --- EXPORT AS IMAGE FILE ---
 
 export async function exportMapAsImage(visits: HouseholdVisit[], filename: string = 'census-map'): Promise<void> {
-  const imgData = await renderMapToCanvas(visits, 2400);
+  // Mobile: 1024px (OffscreenCanvas avoids eviction). Desktop: 2400px
+  const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const size = isMobile ? 1024 : 2400;
+  const imgData = await renderMapToCanvas(visits, size);
   if (!imgData) {
     alert('Could not render map. Make sure you have visits recorded.');
     return;

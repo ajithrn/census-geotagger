@@ -73,6 +73,10 @@ export function createNumberedIcon(color: string, index: number, rotationDeg: nu
   });
 }
 
+// Track last map zoom for export consistency
+let _lastMapZoom: number | null = null;
+export function getLastMapZoom(): number | null { return _lastMapZoom; }
+
 function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
   const map = useMap();
 
@@ -84,6 +88,15 @@ function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
     }
   }, [visits, map]);
+
+  // Track zoom changes
+  useEffect(() => {
+    const handler = () => { _lastMapZoom = map.getZoom(); };
+    map.on('zoomend', handler);
+    map.on('moveend', handler);
+    handler();
+    return () => { map.off('zoomend', handler); map.off('moveend', handler); };
+  }, [map]);
 
   return null;
 }
