@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useState } from 'react';
 import { Save } from 'lucide-react';
 import { LANGUAGES } from '../types/survey';
 
@@ -15,7 +16,9 @@ export function getSettings(): AppSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) return JSON.parse(stored);
-  } catch {}
+  } catch {
+    // localStorage unavailable or corrupted — use defaults
+  }
   return { surveyorName: '', defaultWard: '', defaultLanguage: '', organizationName: '' };
 }
 
@@ -23,17 +26,9 @@ export function saveSettings(settings: AppSettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-interface ProfilePageProps {
-  onBack?: () => void;
-}
-
-export function ProfilePage(_props: ProfilePageProps) {
+export function ProfilePage() {
   const [settings, setSettings] = useState<AppSettings>(getSettings);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setSettings(getSettings());
-  }, []);
 
   const handleSave = () => {
     saveSettings(settings);

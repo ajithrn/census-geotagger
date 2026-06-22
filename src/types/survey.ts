@@ -62,7 +62,7 @@ export interface HouseholdVisit {
   markerColor: string;
 }
 
-export interface SurveyFormData extends Omit<HouseholdVisit, 'id' | 'householdId' | 'createdAt' | 'updatedAt' | 'markerColor'> {}
+export type SurveyFormData = Omit<HouseholdVisit, 'id' | 'householdId' | 'createdAt' | 'updatedAt' | 'markerColor'>;
 
 export const MARKER_COLORS_ICONS: Record<VisitStatus, { color: string; icon: string }> = {
   completed: { color: '#22c55e', icon: '✓' },

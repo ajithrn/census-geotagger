@@ -20,7 +20,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-export function createNumberedIcon(color: string, index: number, rotationDeg: number = 0, overlapCount: number = 0): L.DivIcon {
+function createNumberedIcon(color: string, index: number, rotationDeg: number = 0, overlapCount: number = 0): L.DivIcon {
   const fontSize = index > 99 ? '8px' : index > 9 ? '9px' : '11px';
   const circleSize = 24;
   const legHeight = 12 + (overlapCount * 5); // longer leg for more overlaps
@@ -73,30 +73,26 @@ export function createNumberedIcon(color: string, index: number, rotationDeg: nu
   });
 }
 
-// Track last map zoom for export consistency
-let _lastMapZoom: number | null = null;
-export function getLastMapZoom(): number | null { return _lastMapZoom; }
-
 function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
   const map = useMap();
+  const hasFittedRef = useRef(false);
+  const prevVisitIdsRef = useRef<string>('');
 
   useEffect(() => {
-    if (visits.length > 0) {
-      const bounds = L.latLngBounds(
-        visits.map(v => [v.geoLocation.latitude, v.geoLocation.longitude] as [number, number])
-      );
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
-    }
+    if (visits.length === 0) return;
+
+    // Create a stable identity for the current visit set
+    const visitIds = visits.map(v => v.id).join(',');
+    if (visitIds === prevVisitIdsRef.current && hasFittedRef.current) return;
+
+    prevVisitIdsRef.current = visitIds;
+    hasFittedRef.current = true;
+
+    const bounds = L.latLngBounds(
+      visits.map(v => [v.geoLocation.latitude, v.geoLocation.longitude] as [number, number])
+    );
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
   }, [visits, map]);
-
-  // Track zoom changes
-  useEffect(() => {
-    const handler = () => { _lastMapZoom = map.getZoom(); };
-    map.on('zoomend', handler);
-    map.on('moveend', handler);
-    handler();
-    return () => { map.off('zoomend', handler); map.off('moveend', handler); };
-  }, [map]);
 
   return null;
 }
@@ -111,14 +107,14 @@ export function MapView({ refreshTrigger }: MapViewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadVisits();
-  }, [refreshTrigger]);
-
   const loadVisits = async () => {
     const data = await getAllVisits();
     setVisits(data);
   };
+
+  useEffect(() => {
+    loadVisits(); // eslint-disable-line react-hooks/set-state-in-effect -- loading data from IndexedDB on mount/refresh
+  }, [refreshTrigger]);
 
   const filteredVisits = filter === 'all'
     ? visits

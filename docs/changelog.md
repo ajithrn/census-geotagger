@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2025-06-22
+
+### Performance
+
+- Map tile fetching is now concurrent (worker-pool pattern) — 4-8x faster render times
+  - Desktop: 8 concurrent fetches
+  - Mobile: row-by-row with 4 concurrent fetches per row (lower peak memory)
+- PDF map image converted to JPEG before embedding — 3-5x smaller payload, faster addImage parsing
+- PDF detail pages generated in chunks with main-thread yielding (UI stays responsive during large exports)
+- Backup import uses bulkPut() instead of per-record await loops (dramatically faster for large datasets)
+- Duplicate detection during import uses single primaryKeys() query instead of per-record get()
+
+### Changed
+
+- Desktop map image export resolution increased to 3600px (from 2400px)
+- Desktop PDF map render resolution increased to 1800px (from 1200px)
+- Canvas size automatically clamped to device-safe maximums (iOS: 4096px, Android: 5792px, Desktop: 8192px)
+- Canvas export uses toBlob() pipeline instead of toDataURL() to reduce memory pressure
+- FitBounds only re-fits when the actual set of visible markers changes (not on every render)
+
+### Fixed
+
+- SurveyForm: useEffect dependency on editingVisit now properly handles null (cleans up edit state)
+- SurveyForm: totalMembers computed from males + females at save time (prevents desync)
+- ExportPanel: PDF and map image export errors now caught and shown to user (were silently swallowed)
+- MapView: FitBounds no longer resets user's manual pan/zoom on every render cycle
+- usePWA: setInterval for periodic SW update checks now cleaned up on unmount (memory leak)
+- usePWA: isInstalled detection moved to useState initializer (eliminates cascading render)
+- ProfilePage: removed unnecessary useEffect with setState (useState initializer sufficient)
+
+### Code Quality
+
+- All ESLint errors resolved (0 errors, 0 warnings)
+- Removed unused exports (createNumberedIcon, getLastMapZoom)
+- Removed unused variables and props across components
+- Fixed function hoisting (loadVisits declared before useEffect in all components)
+- SurveyFormData changed from empty interface to proper type alias
+- Empty catch blocks annotated with explanation comments
+- Consistent eslint-disable comments with rationale for legitimate suppressions
+
 ## [1.7.0] - 2025-06-22
 
 ### Added

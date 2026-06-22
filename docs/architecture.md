@@ -55,14 +55,18 @@ Census GeoTagger is a client-side Progressive Web App with zero backend dependen
 
 - Single `renderMapToCanvas()` function in `mapRenderer.ts` used by both PDF and standalone image export
 - Uses OffscreenCanvas when available (prevents Chrome compositor from evicting backing store on mobile)
-- Fetches OSM tiles sequentially — each tile drawn to canvas immediately after fetch, then discarded from memory
-- Checks SW cache first (tiles already loaded by map view), falls back to network with 4 retries
-- Only one Image object in memory at a time (prevents mobile GC from clearing tiles)
+- Concurrent tile fetching via worker-pool pattern:
+  - Desktop: fetches all tiles in parallel (8 concurrent), then draws to canvas
+  - Mobile: fetches row-by-row (4 concurrent per row), draws each row immediately, releases images for GC
+- Checks SW cache first (tiles already loaded by map view), falls back to network with retries
+- Canvas size automatically clamped to device-safe limits (iOS 4096px, Android 5792px, Desktop 8192px)
 - Draws numbered pin markers programmatically using canvas arc/fill
 - Overlapping pins rotate their legs outward with progressive length
 - Auto-calculates zoom level to fit all pins with padding
+- Export uses Blob pipeline (toBlob) instead of toDataURL to reduce memory pressure
+- PDF embeds map as JPEG (0.85 quality) for faster jsPDF addImage processing
 - No Leaflet, no html2canvas, no hidden DOM — pure canvas + fetch
-- Canvas size: 1024px mobile / 1200px desktop (PDF), 1024px mobile / 2400px desktop (image)
+- Canvas size: 1024px mobile / 1800px desktop (PDF), 1024px mobile / 3600px desktop (image)
 - Falls back to regular HTMLCanvasElement on browsers without OffscreenCanvas
 
 ### Edit Flow
@@ -108,8 +112,8 @@ src/
 2. **Edit** → Record loaded into form → Updated via put() → Navigate to Records
 3. **Map View** → Reads all visits → Renders numbered Leaflet markers (with overlap offset)
 4. **Records** → Reads from IndexedDB → Full data expand → Edit/Delete actions
-4. **Export PDF** → Sequential tile fetch+draw to canvas → Pins drawn → PNG embedded in PDF
-5. **Export Map Image** → Same renderMapToCanvas() → Downloads as PNG
+4. **Export PDF** → Concurrent tile fetch → Pins drawn → JPEG-compressed map embedded in PDF
+5. **Export Map Image** → Same renderMapToCanvas() → Downloads as PNG via Blob pipeline
 6. **Export CSV/GeoJSON** → Reads from IndexedDB → Generates file → Browser download
 
 ## Database Schema
@@ -148,7 +152,7 @@ Write operations use `db.visits.put()` for reliable upsert behavior.
 | Map | Leaflet + react-leaflet | Mature, lightweight, OSM integration |
 | Tiles | OpenStreetMap | Free, no API key, community-maintained |
 | Storage | Dexie.js 4 (IndexedDB) | Typed, promise-based, large storage quota |
-| PDF | jsPDF + canvas tile renderer | Sequential tile fetch, draw-per-tile, pin overlay |
+| PDF | jsPDF + canvas tile renderer | Concurrent tile fetch, JPEG compression, pin overlay |
 | CSV | PapaParse | Robust CSV generation with proper escaping |
 | PWA | vite-plugin-pwa (prompt mode) | Manual SW registration, user-controlled updates |
 

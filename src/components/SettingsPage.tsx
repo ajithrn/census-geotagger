@@ -13,7 +13,7 @@ export function SettingsPage() {
     try {
       const visits = await getAllVisits();
       const backup = {
-        version: '1.3.1',
+        version: '1.8.0',
         exportedAt: new Date().toISOString(),
         recordCount: visits.length,
         data: visits,
@@ -53,18 +53,28 @@ export function SettingsPage() {
       let imported = 0;
       let skipped = 0;
 
+      // Get all existing IDs in one query for fast duplicate detection
+      const existingIds = new Set(
+        (await db.visits.toCollection().primaryKeys())
+      );
+
+      const toInsert: HouseholdVisit[] = [];
       for (const record of records) {
         if (!record.id || !record.householdId) {
           skipped++;
           continue;
         }
-        const existing = await db.visits.get(record.id);
-        if (existing) {
+        if (existingIds.has(record.id)) {
           skipped++;
         } else {
-          await db.visits.put(record);
+          toInsert.push(record);
           imported++;
         }
+      }
+
+      // Batch write all new records at once
+      if (toInsert.length > 0) {
+        await db.visits.bulkPut(toInsert);
       }
 
       setStatus({ type: 'success', text: `Imported ${imported} records (${skipped} skipped/duplicates)` });
@@ -99,13 +109,10 @@ export function SettingsPage() {
 
       await clearAllVisits();
       const records: HouseholdVisit[] = backup.data;
-      for (const record of records) {
-        if (record.id && record.householdId) {
-          await db.visits.put(record);
-        }
-      }
+      const validRecords = records.filter(r => r.id && r.householdId);
+      await db.visits.bulkPut(validRecords);
 
-      setStatus({ type: 'success', text: `Restored ${records.length} records from backup` });
+      setStatus({ type: 'success', text: `Restored ${validRecords.length} records from backup` });
     } catch (err) {
       setStatus({ type: 'error', text: `Restore failed: ${err}` });
     } finally {

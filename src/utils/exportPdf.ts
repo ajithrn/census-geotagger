@@ -3,8 +3,16 @@ import type { HouseholdVisit } from '../types/survey';
 import { MARKER_COLORS, VISIT_STATUS_LABELS, HOUSEHOLD_TYPE_LABELS, STRUCTURE_TYPE_LABELS, OCCUPATION_LABELS, INCOME_LABELS, WATER_SOURCE_LABELS, RATION_CARD_LABELS } from '../types/survey';
 import { renderMapToCanvas } from './mapRenderer';
 
+/* eslint-disable no-useless-assignment */
+// y tracks vertical cursor position in PDF — assigned at end of sections for consistency even when a new page resets it
+
 // Re-export canvas-based map image export
 export { exportMapAsImage as exportMapImage } from './mapRenderer';
+
+/** Yield to the main thread to keep UI responsive during heavy PDF generation */
+function yieldToMain(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
 
 export async function exportToPdf(
   visits: HouseholdVisit[],
@@ -29,12 +37,14 @@ export async function exportToPdf(
   pdf.setTextColor(0, 0, 0);
   y += 8;
 
-  // Render map — 1024 on mobile (OffscreenCanvas handles memory), 1200 on desktop
+  // Render map — use JPEG for smaller data URL and faster addImage parsing
   const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent);
-  const mapImg = await renderMapToCanvas(visits, isMobile ? 1024 : 1200);
+  const mapImg = await renderMapToCanvas(visits, isMobile ? 1024 : 1800);
   if (mapImg) {
     const mapH = Math.min(UW, H - y - M - 20);
-    pdf.addImage(mapImg, 'PNG', M, y, UW, mapH);
+    // Convert PNG data URL to JPEG for faster PDF embedding (smaller payload)
+    const jpegImg = await convertToJpeg(mapImg);
+    pdf.addImage(jpegImg, 'JPEG', M, y, UW, mapH);
     y += mapH + 4;
     drawMapLegend(pdf, y, M, visits);
   } else {
@@ -64,14 +74,45 @@ export async function exportToPdf(
   y += 10;
   y = drawStatsDashboard(pdf, visits, M, y, UW, H);
 
-  // === DETAIL PAGES ===
-  visits.forEach((visit, index) => {
+  // === DETAIL PAGES (chunked to keep UI responsive) ===
+  const CHUNK_SIZE = 20;
+  for (let i = 0; i < visits.length; i++) {
     pdf.addPage();
     y = M;
-    y = drawDetailPage(pdf, visit, index, M, y, UW, H);
-  });
+    y = drawDetailPage(pdf, visits[i], i, M, y, UW, H);
+
+    // Yield every CHUNK_SIZE pages to avoid blocking the main thread
+    if ((i + 1) % CHUNK_SIZE === 0 && i < visits.length - 1) {
+      await yieldToMain();
+    }
+  }
 
   pdf.save(`${filename}.pdf`);
+}
+
+/**
+ * Convert a PNG data URL to JPEG for much faster PDF addImage processing.
+ * JPEG is ~3-5x smaller than PNG for map imagery, significantly reducing
+ * the time jsPDF spends parsing and embedding the image.
+ */
+async function convertToJpeg(pngDataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(pngDataUrl); return; }
+      // White background (JPEG has no alpha)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(pngDataUrl); // Fallback to PNG on error
+    img.src = pngDataUrl;
+  });
 }
 
 // --- DRAWING HELPERS ---
@@ -155,7 +196,7 @@ function drawIndexTable(pdf: jsPDF, visits: HouseholdVisit[], M: number, y: numb
   return y;
 }
 
-function drawStatsDashboard(pdf: jsPDF, visits: HouseholdVisit[], M: number, y: number, UW: number, _H: number): number {
+function drawStatsDashboard(pdf: jsPDF, visits: HouseholdVisit[], M: number, y: number, UW: number, _H: number): number { // eslint-disable-line @typescript-eslint/no-unused-vars
   const total = visits.length;
   if (total === 0) { pdf.setFontSize(9); pdf.text('No data available.', M, y); return y + 10; }
 

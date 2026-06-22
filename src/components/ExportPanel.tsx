@@ -17,14 +17,14 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
   const [visits, setVisits] = useState<HouseholdVisit[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadVisits();
-  }, [refreshTrigger]);
-
   const loadVisits = async () => {
     const data = await getAllVisits();
     setVisits(data);
   };
+
+  useEffect(() => {
+    loadVisits(); // eslint-disable-line react-hooks/set-state-in-effect -- loading data from IndexedDB on mount/refresh is a standard pattern
+  }, [refreshTrigger]);
 
   const handleExportCsv = () => {
     setExporting('csv');
@@ -48,6 +48,9 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
     setExporting('pdf');
     try {
       await exportToPdf(visits, null, `census-report-${Date.now()}`);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('PDF export failed. Please try again.');
     } finally {
       setTimeout(() => setExporting(null), 2000);
     }
@@ -57,6 +60,9 @@ export function ExportPanel({ refreshTrigger }: ExportPanelProps) {
     setExporting('map');
     try {
       await exportMapImage(visits, `census-map-${Date.now()}`);
+    } catch (err) {
+      console.error('Map image export failed:', err);
+      alert('Map image export failed. Please try again.');
     } finally {
       setTimeout(() => setExporting(null), 2000);
     }

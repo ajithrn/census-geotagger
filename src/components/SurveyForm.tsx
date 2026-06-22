@@ -91,15 +91,22 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
   // Load editing visit data when prop changes
   useEffect(() => {
     if (editingVisit) {
-      const { id, householdId, createdAt, updatedAt: _u, markerColor: _m, ...rest } = editingVisit;
-      setFormData(rest);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, householdId, createdAt, updatedAt, markerColor, ...rest } = editingVisit;
+      setFormData(rest); // eslint-disable-line react-hooks/set-state-in-effect -- syncing form state from prop
       setEditId(id);
       setEditHouseholdId(householdId);
       setEditCreatedAt(createdAt);
       setStep(0);
       setMessage(null);
+    } else if (editId) {
+      // editingVisit cleared (e.g. navigated away) — reset edit state
+      setEditId(null);
+      setEditHouseholdId(null);
+      setEditCreatedAt(null);
     }
-  }, [editingVisit?.id, editingVisit?.updatedAt]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingVisit]);
 
   const updateField = <K extends keyof SurveyFormData>(key: K, value: SurveyFormData[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -146,6 +153,11 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
     setSaving(true);
     try {
       const now = Date.now();
+      // Always compute totalMembers from males + females to prevent stale values
+      const finalFormData = {
+        ...formData,
+        totalMembers: formData.totalMales + formData.totalFemales || formData.totalMembers,
+      };
       if (editId) {
         // Update existing record
         const visit: HouseholdVisit = {
@@ -153,8 +165,8 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
           householdId: editHouseholdId!,
           createdAt: editCreatedAt!,
           updatedAt: now,
-          ...formData,
-          markerColor: MARKER_COLORS[formData.visitStatus],
+          ...finalFormData,
+          markerColor: MARKER_COLORS[finalFormData.visitStatus],
         };
         await addVisit(visit); // put() handles upsert
         setMessage({ type: 'success', text: `Updated! ID: ${visit.householdId}` });
@@ -172,8 +184,8 @@ export function SurveyForm({ onSaved, editingVisit, onEditComplete, onNavigate }
           householdId: `HH-${Date.now().toString(36).toUpperCase()}`,
           createdAt: now,
           updatedAt: now,
-          ...formData,
-          markerColor: MARKER_COLORS[formData.visitStatus],
+          ...finalFormData,
+          markerColor: MARKER_COLORS[finalFormData.visitStatus],
         };
         await addVisit(visit);
         setMessage({ type: 'success', text: `Saved successfully! ID: ${visit.householdId}` });
@@ -343,7 +355,7 @@ function StepLocation({ formData, updateField, geoLoading, geoError, onGetLocati
 }
 
 function StepHousehold({ formData, updateField }: StepProps) {
-  const totalMembers = formData.totalMales + formData.totalFemales;
+  const computedTotal = formData.totalMales + formData.totalFemales;
 
   return (
     <div className="space-y-4">
@@ -380,7 +392,7 @@ function StepHousehold({ formData, updateField }: StepProps) {
         {/* Auto-calculated total */}
         <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
           <span className="text-sm text-gray-600 font-medium">Total Members</span>
-          <span className="text-lg font-bold text-gray-800 tabular-nums">{totalMembers || formData.totalMembers}</span>
+          <span className="text-lg font-bold text-gray-800 tabular-nums">{computedTotal || formData.totalMembers}</span>
         </div>
       </div>
     </div>

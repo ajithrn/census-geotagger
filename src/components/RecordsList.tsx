@@ -29,14 +29,14 @@ export function RecordsList({ refreshTrigger, onRefresh, onEdit }: RecordsListPr
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    loadVisits();
-  }, [refreshTrigger]);
-
   const loadVisits = async () => {
     const data = await getAllVisits();
     setVisits(data);
   };
+
+  useEffect(() => {
+    loadVisits(); // eslint-disable-line react-hooks/set-state-in-effect -- loading data from IndexedDB on mount/refresh
+  }, [refreshTrigger]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this visit record? This cannot be undone.')) {

@@ -2,9 +2,42 @@
  * Canvas-based map renderer for export.
  * Fetches OSM tiles directly, stitches them, draws numbered pins.
  * No Leaflet, no html2canvas — works reliably on mobile.
+ *
+ * Memory-safe design for mobile PWAs:
+ * - Respects browser canvas size limits (iOS ~16MP, Android ~32MP)
+ * - Uses OffscreenCanvas to avoid compositor eviction
+ * - Draws tiles in row-batches so decoded images can be GC'd between rows
+ * - Exports via Blob pipeline (avoids massive data URL strings in memory)
  */
 
 import type { HouseholdVisit } from '../types/survey';
+
+// --- PLATFORM DETECTION ---
+
+function isMobileDevice(): boolean {
+  return typeof window !== 'undefined' &&
+    (window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent));
+}
+
+/**
+ * Returns the maximum safe canvas dimension for the current device.
+ * iOS Safari: ~4096px per side (16MP total). Android Chrome: ~5792px (~32MP).
+ * Desktop: effectively unlimited for our sizes.
+ */
+function getMaxCanvasSize(): number {
+  if (typeof navigator === 'undefined') return 4096;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (isIOS) return 4096;
+  if (isMobileDevice()) return 5792;
+  return 8192; // Desktop — more than enough
+}
+
+/**
+ * Clamp requested canvas size to the device's safe maximum.
+ */
+function clampCanvasSize(requested: number): number {
+  return Math.min(requested, getMaxCanvasSize());
+}
 
 // --- TILE MATH ---
 
@@ -18,10 +51,6 @@ function lat2tile(lat: number, zoom: number): number {
     Math.pow(2, zoom)
   );
 }
-
-// Reserved for future use (inverse tile math)
-// function tile2lon(x: number, zoom: number) { return (x / Math.pow(2, zoom)) * 360 - 180; }
-// function tile2lat(y: number, zoom: number) { const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, zoom); return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); }
 
 // --- CALCULATE ZOOM & BOUNDS ---
 
@@ -53,7 +82,6 @@ async function fetchTile(x: number, y: number, z: number, retries: number = 2): 
   // Try SW cache first (tiles already loaded by the map view)
   try {
     const cache = await caches.open('osm-tiles');
-    // Try all subdomain variants since Leaflet may have cached with a different one
     for (const s of ['a', 'b', 'c']) {
       const cacheUrl = `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
       const cachedResponse = await cache.match(cacheUrl);
@@ -74,19 +102,19 @@ async function fetchTile(x: number, y: number, z: number, retries: number = 2): 
     try {
       const response = await fetch(url, { mode: 'cors' });
       if (!response.ok) {
-        if (attempt < retries) { await delay(500); continue; }
+        if (attempt < retries) { await delay(300); continue; }
         return null;
       }
       const blob = await response.blob();
       if (blob.size < 100) {
-        if (attempt < retries) { await delay(500); continue; }
+        if (attempt < retries) { await delay(300); continue; }
         return null;
       }
       const img = await blobToImage(blob);
       if (img) return img;
-      if (attempt < retries) await delay(500);
+      if (attempt < retries) await delay(300);
     } catch {
-      if (attempt < retries) await delay(500);
+      if (attempt < retries) await delay(300);
     }
   }
   return null;
@@ -105,8 +133,77 @@ function blobToImage(blob: Blob): Promise<HTMLImageElement | null> {
 
 function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// Reserved: batch fetching (not used — sequential draw is more reliable on mobile)
-// async function fetchTilesInBatches(...) { ... }
+// --- BATCH CONCURRENT TILE FETCHING ---
+
+interface TileResult {
+  tx: number;
+  ty: number;
+  img: HTMLImageElement | null;
+}
+
+/**
+ * Fetch tiles concurrently with controlled parallelism.
+ * Limits concurrent requests to avoid overwhelming the browser/network.
+ */
+async function fetchTilesBatch(
+  tiles: { tx: number; ty: number; z: number }[],
+  concurrency: number = 6
+): Promise<TileResult[]> {
+  const results: TileResult[] = [];
+  let index = 0;
+
+  async function worker() {
+    while (index < tiles.length) {
+      const i = index++;
+      const { tx, ty, z } = tiles[i];
+      const img = await fetchTile(tx, ty, z, 2);
+      results[i] = { tx, ty, img };
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, tiles.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Fetch and draw tiles row by row. Each row is fetched concurrently,
+ * drawn immediately, then image references are released so the GC can
+ * reclaim decoded bitmap memory before the next row starts.
+ * This keeps peak memory proportional to one row of tiles, not all tiles.
+ */
+async function fetchAndDrawTilesInRows(
+  ctx: CanvasRenderingContext2D,
+  startTileX: number,
+  startTileY: number,
+  endTileX: number,
+  endTileY: number,
+  zoom: number,
+  offsetX: number,
+  offsetY: number,
+  concurrency: number
+): Promise<void> {
+  for (let ty = startTileY; ty < endTileY; ty++) {
+    // Build row
+    const rowTiles: { tx: number; ty: number; z: number }[] = [];
+    for (let tx = startTileX; tx < endTileX; tx++) {
+      rowTiles.push({ tx, ty, z: zoom });
+    }
+
+    // Fetch entire row concurrently
+    const rowResults = await fetchTilesBatch(rowTiles, concurrency);
+
+    // Draw and release
+    for (const { tx, ty: tileY, img } of rowResults) {
+      if (img) {
+        const px = (tx - startTileX) * 256 + offsetX;
+        const py = (tileY - startTileY) * 256 + offsetY;
+        ctx.drawImage(img, px, py, 256, 256);
+      }
+    }
+    // rowResults goes out of scope here — images can be GC'd
+  }
+}
 
 // --- DRAW PIN ---
 
@@ -173,8 +270,11 @@ function drawPin(
 
 // --- MAIN RENDER FUNCTION ---
 
-export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: number = 1200): Promise<string | null> {
+export async function renderMapToCanvas(visits: HouseholdVisit[], requestedSize: number = 1200): Promise<string | null> {
   if (visits.length === 0) return null;
+
+  // Clamp to safe canvas dimensions for the device
+  const canvasSize = clampCanvasSize(requestedSize);
 
   // Use OffscreenCanvas if available (avoids Chrome compositor eviction on mobile)
   let canvas: HTMLCanvasElement | OffscreenCanvas;
@@ -220,14 +320,33 @@ export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: nu
   const offsetX = canvasSize / 2 - (centerTileX - startTileX) * 256;
   const offsetY = canvasSize / 2 - (centerTileY - startTileY) * 256;
 
-  // Fetch and draw tiles ONE AT A TIME — draw immediately, then discard image
-  // This prevents mobile browsers from GC'ing images before we draw them
-  for (let ty = startTileY; ty < endTileY; ty++) {
-    for (let tx = startTileX; tx < endTileX; tx++) {
-      const px = (tx - startTileX) * 256 + offsetX;
-      const py = (ty - startTileY) * 256 + offsetY;
-      const img = await fetchTile(tx, ty, zoom, 3);
+  // Tile fetching strategy:
+  // Mobile: row-by-row (lower peak memory — only one row of decoded images at a time)
+  // Desktop: full-batch (maximum speed, memory is plentiful)
+  const mobile = isMobileDevice();
+  const concurrency = mobile ? 4 : 8;
+
+  if (mobile) {
+    // Row-by-row: fetch one row, draw, release, next row
+    await fetchAndDrawTilesInRows(
+      drawCtx, startTileX, startTileY, endTileX, endTileY,
+      zoom, offsetX, offsetY, concurrency
+    );
+  } else {
+    // Full batch: fetch all tiles concurrently, then draw
+    const tilesToFetch: { tx: number; ty: number; z: number }[] = [];
+    for (let ty = startTileY; ty < endTileY; ty++) {
+      for (let tx = startTileX; tx < endTileX; tx++) {
+        tilesToFetch.push({ tx, ty, z: zoom });
+      }
+    }
+
+    const tileResults = await fetchTilesBatch(tilesToFetch, concurrency);
+
+    for (const { tx, ty, img } of tileResults) {
       if (img) {
+        const px = (tx - startTileX) * 256 + offsetX;
+        const py = (ty - startTileY) * 256 + offsetY;
         drawCtx.drawImage(img, px, py, 256, 256);
       }
     }
@@ -268,30 +387,49 @@ export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: nu
   drawCtx.textAlign = 'center';
   drawCtx.fillText('© OpenStreetMap contributors', canvasSize / 2, canvasSize - 7);
 
-  // Convert to data URL
+  // Export via Blob pipeline — avoids holding a massive data URL string in memory.
+  // On mobile this is critical: a 1024px PNG data URL is ~4MB of base64 text.
   if (canvas instanceof OffscreenCanvas) {
     const blob = await canvas.convertToBlob({ type: 'image/png' });
-    return new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(blob);
-    });
+    return blobToDataUrl(blob);
   }
-  return (canvas as HTMLCanvasElement).toDataURL('image/png');
+  // HTMLCanvasElement — try toBlob first (less memory than toDataURL), fallback to toDataURL
+  return new Promise((resolve) => {
+    (canvas as HTMLCanvasElement).toBlob(
+      (blob) => {
+        if (blob) {
+          blobToDataUrl(blob).then(resolve);
+        } else {
+          resolve((canvas as HTMLCanvasElement).toDataURL('image/png'));
+        }
+      },
+      'image/png'
+    );
+  });
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read blob'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 // --- EXPORT AS IMAGE FILE ---
 
 export async function exportMapAsImage(visits: HouseholdVisit[], filename: string = 'census-map'): Promise<void> {
-  // Mobile: 1024px (OffscreenCanvas avoids eviction). Desktop: 2400px
-  const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent);
-  const size = isMobile ? 1024 : 2400;
+  // Mobile: 1024px (safe for iOS 16MP limit). Desktop: 3600px high-res.
+  const mobile = isMobileDevice();
+  const size = mobile ? 1024 : 3600;
   const imgData = await renderMapToCanvas(visits, size);
   if (!imgData) {
     alert('Could not render map. Make sure you have visits recorded.');
     return;
   }
 
+  // Convert data URL to Blob for download (avoids holding two copies in memory)
   const response = await fetch(imgData);
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);

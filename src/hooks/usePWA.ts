@@ -17,10 +17,15 @@ interface PWAState {
 export function usePWA(): PWAState {
   const [needsUpdate, setNeedsUpdate] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as unknown as { standalone?: boolean }).standalone === true;
+    return isStandalone;
+  });
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // --- Service Worker Registration ---
@@ -49,7 +54,8 @@ export function usePWA(): PWAState {
         });
 
         // Check for updates periodically (every 60 min)
-        setInterval(() => registration.update(), 60 * 60 * 1000);
+        const intervalId = setInterval(() => registration.update(), 60 * 60 * 1000);
+        intervalRef.current = intervalId;
       }).catch(err => {
         // SW not available in dev mode — this is expected
         console.log('SW registration unavailable:', err.message);
@@ -73,11 +79,6 @@ export function usePWA(): PWAState {
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    // Check if already running as installed PWA
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsInstalled(isStandalone);
-
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setCanInstall(false);
@@ -96,6 +97,7 @@ export function usePWA(): PWAState {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
 
