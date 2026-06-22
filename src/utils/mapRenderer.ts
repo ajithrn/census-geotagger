@@ -81,13 +81,21 @@ function drawPin(
   y: number,
   color: string,
   index: number,
-  size: number = 24
+  size: number = 24,
+  rotation: number = 0,
+  overlapCount: number = 0
 ) {
   ctx.save();
 
   const radius = size * 0.4;
-  const centerY = y - radius - 4;
-  const tipY = y + 2;
+  const legLength = radius + 6 + (overlapCount * 4); // longer leg for more overlaps
+
+  // Calculate circle center and leg tip based on rotation
+  // Rotation pivots around the GPS point (x, y) — leg tip stays at (x, y)
+  const legTipX = x;
+  const legTipY = y;
+  const centerX = x - Math.sin(rotation) * legLength;
+  const centerY = y - Math.cos(rotation) * legLength;
 
   // Shadow
   ctx.shadowColor = 'rgba(0,0,0,0.25)';
@@ -96,7 +104,7 @@ function drawPin(
 
   // Circle head
   ctx.beginPath();
-  ctx.arc(x, centerY, radius, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.globalAlpha = 0.85;
   ctx.fillStyle = color;
   ctx.fill();
@@ -106,21 +114,24 @@ function drawPin(
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Line leg pointing down
+  // Line leg from circle edge to tip (GPS point)
   ctx.beginPath();
-  ctx.moveTo(x, centerY + radius);
-  ctx.lineTo(x, tipY);
+  ctx.moveTo(
+    centerX + Math.sin(rotation) * radius,
+    centerY + Math.cos(rotation) * radius
+  );
+  ctx.lineTo(legTipX, legTipY);
   ctx.strokeStyle = color;
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Number text
+  // Number text (always upright)
   ctx.fillStyle = 'white';
   ctx.font = `bold ${Math.round(size * 0.35)}px system-ui, -apple-system, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(index), x, centerY);
+  ctx.fillText(String(index), centerX, centerY);
 
   ctx.restore();
 }
@@ -183,14 +194,29 @@ export async function renderMapToCanvas(visits: HouseholdVisit[], canvasSize: nu
 
   // Draw pins (later pins on top)
   const pinSize = Math.max(20, Math.min(36, canvasSize / 30));
-  visits.forEach((visit, index) => {
-    // Convert lat/lng to pixel position on canvas
+
+  // Calculate pixel positions and detect overlaps
+  const pinPositions = visits.map((visit) => {
     const tileX = lon2tile(visit.geoLocation.longitude, zoom);
     const tileY = lat2tile(visit.geoLocation.latitude, zoom);
     const px = (tileX - startTileX) * 256 + offsetX;
     const py = (tileY - startTileY) * 256 + offsetY;
+    return { px, py };
+  });
 
-    drawPin(ctx, px, py, visit.markerColor, index + 1, pinSize);
+  // Rotation angles: [0, 45°, -45°, 90°, -90°, 135°, -135°, 180°]
+  const rotationSlots = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, Math.PI * 0.75, -Math.PI * 0.75, Math.PI];
+
+  visits.forEach((visit, index) => {
+    const { px, py } = pinPositions[index];
+
+    // Count how many previous pins are within overlap distance (pinSize pixels)
+    const overlapIndex = pinPositions.slice(0, index).filter(p =>
+      Math.abs(p.px - px) < pinSize && Math.abs(p.py - py) < pinSize
+    ).length;
+
+    const rotation = overlapIndex > 0 ? (rotationSlots[overlapIndex % rotationSlots.length] || 0) : 0;
+    drawPin(ctx, px, py, visit.markerColor, index + 1, pinSize, rotation, overlapIndex);
   });
 
   // Add attribution

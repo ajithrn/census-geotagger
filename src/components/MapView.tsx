@@ -20,22 +20,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-export function createNumberedIcon(color: string, index: number): L.DivIcon {
+export function createNumberedIcon(color: string, index: number, rotationDeg: number = 0, overlapCount: number = 0): L.DivIcon {
   const fontSize = index > 99 ? '8px' : index > 9 ? '9px' : '11px';
+  const circleSize = 24;
+  const legHeight = 12 + (overlapCount * 5); // longer leg for more overlaps
+  const totalHeight = circleSize + 2 + legHeight;
+
+  // When rotated, the whole pin rotates around the leg tip (bottom center)
+  // The icon anchor stays at the tip, CSS transform-origin handles pivot
   return L.divIcon({
     className: 'custom-marker',
     html: `<div style="
       position: relative;
       width: 26px;
-      height: 38px;
+      height: ${totalHeight}px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      transform: rotate(${rotationDeg}deg);
+      transform-origin: center bottom;
     ">
       <div style="
         background-color: ${color};
-        width: 24px;
-        height: 24px;
+        width: ${circleSize}px;
+        height: ${circleSize}px;
         border-radius: 50%;
         border: 2px solid white;
         box-shadow: 0 2px 5px rgba(0,0,0,0.35);
@@ -49,18 +57,19 @@ export function createNumberedIcon(color: string, index: number): L.DivIcon {
           font-weight: 800;
           color: white;
           text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+          transform: rotate(${-rotationDeg}deg);
         ">${index}</span>
       </div>
       <div style="
         width: 2.5px;
-        height: 12px;
+        height: ${legHeight}px;
         background-color: ${color};
         border-radius: 0 0 2px 2px;
       "></div>
     </div>`,
-    iconSize: [26, 38],
-    iconAnchor: [13, 38],
-    popupAnchor: [0, -36],
+    iconSize: [26, totalHeight],
+    iconAnchor: [13, totalHeight],
+    popupAnchor: [0, -totalHeight],
   });
 }
 
@@ -72,7 +81,7 @@ function FitBounds({ visits }: { visits: HouseholdVisit[] }) {
       const bounds = L.latLngBounds(
         visits.map(v => [v.geoLocation.latitude, v.geoLocation.longitude] as [number, number])
       );
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
     }
   }, [visits, map]);
 
@@ -190,19 +199,21 @@ export function MapView({ refreshTrigger }: MapViewProps) {
             />
             <FitBounds visits={filteredVisits} />
             {filteredVisits.map((visit, index) => {
-              // Only offset markers at truly identical coordinates (within ~1m)
-              const sameLocCount = filteredVisits.slice(0, index).filter(v =>
-                Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00001 &&
-                Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00001
+              // Detect overlapping pins (within ~5m) and assign rotation
+              const overlapIndex = filteredVisits.slice(0, index).filter(v =>
+                Math.abs(v.geoLocation.latitude - visit.geoLocation.latitude) < 0.00005 &&
+                Math.abs(v.geoLocation.longitude - visit.geoLocation.longitude) < 0.00005
               ).length;
-              const offsetLat = sameLocCount * 0.00005;
-              const offsetLng = sameLocCount * 0.00005;
+
+              // Rotation slots in degrees: 0, 45, -45, 90, -90, 135, -135, 180
+              const rotationSlots = [0, 45, -45, 90, -90, 135, -135, 180];
+              const rotationDeg = overlapIndex > 0 ? (rotationSlots[overlapIndex % rotationSlots.length] || 0) : 0;
 
               return (
               <Marker
                 key={visit.id}
-                position={[visit.geoLocation.latitude + offsetLat, visit.geoLocation.longitude + offsetLng]}
-                icon={createNumberedIcon(visit.markerColor, index + 1)}
+                position={[visit.geoLocation.latitude, visit.geoLocation.longitude]}
+                icon={createNumberedIcon(visit.markerColor, index + 1, rotationDeg, overlapIndex)}
                 zIndexOffset={index * 10}
               >
                 <Popup>

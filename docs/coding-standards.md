@@ -86,8 +86,9 @@ function HelperComponent({ label }: { label: string }) {
 
 - Numbered pins using `L.divIcon` with flexbox-centered index number
 - Compact 20px pins for export, 30px for in-app view
-- Overlap handling: offset only for identical coordinates (<1m), by ~5m diagonally
-- `zIndexOffset` ensures later markers are clickable on top
+- Overlap handling: pins at same GPS rotate their legs outward (fan pattern)
+- Progressive leg length — more overlaps = longer legs
+- Rotation slots: 0°, ±45°, ±90°, ±135°, 180°
 - Fullscreen button using native Fullscreen API
 - fitBounds maxZoom 18, MapContainer maxZoom 19
 - Single `renderMapImage()` for both PDF and standalone image export (always 1800x1800 @3x)

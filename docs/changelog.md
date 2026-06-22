@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-06-21
+
+### Added
+
+- Rotated pin legs for overlapping markers (same GPS point → pins fan out like petals)
+- Progressive leg length for overlaps (each additional pin gets a longer leg)
+- Rotation applied consistently in both map view (CSS) and canvas export (trigonometry)
+
+### Changed
+
+- Pin numbers stay upright via counter-rotation (CSS) / no rotation (canvas)
+- No more coordinate offsetting for overlaps — pins at exact GPS, only visual rotation
+- Map fitBounds maxZoom reduced to 17 to prevent over-zoom breaking rotated pins
+- Overlap detection: within ~5m (map view), within pinSize pixels (canvas export)
+- Rotation slots: 0°, 45°, -45°, 90°, -90°, 135°, -135°, 180°
+
 ## [1.5.0] - 2025-06-21
 
 ### Changed
